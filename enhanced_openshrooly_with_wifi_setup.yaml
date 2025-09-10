@@ -1,0 +1,938 @@
+# Enhanced OpenShrooly with WiFi 6 Support, On-Device Editing, and WiFi Setup
+
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Enhanced OpenShrooly
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+# Enhanced logging for WiFi diagnostics
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+    password: "your-ota-password"
+
+# WiFi configuration with dynamic setup capability
+wifi:
+  # Fallback hotspot mode for setup
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+  
+  # Connection settings
+  reboot_timeout: 15min
+  power_save_mode: LIGHT
+
+captive_portal:
+
+# Enhanced web server
+web_server:
+  port: 80
+
+# Working I2C bus configuration for Shrooly
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    model: 2.90inv2-r2
+    rotation: 90°
+    id: epd_display
+    update_interval: never
+    lambda: |-
+      // Enhanced menu display with WiFi status and setup
+      if (id(menu_mode) == 0) {
+        // Main program selection menu
+        it.print(0, 0, id(font_large), "SELECT PROGRAM");
+        
+        // Show WiFi status
+        if (id(wifi_connected)) {
+          it.print(140, 0, id(font_small), "WiFi");
+        } else {
+          it.print(140, 0, id(font_small), "NoWiFi");
+        }
+        
+        std::vector<std::string> programs = {
+          "Golden Teacher Pin",
+          "Golden Teacher Fruit", 
+          "Oyster Mushroom",
+          "Reishi Mushroom"
+        };
+        
+        for (int i = 0; i < 4; i++) {
+          if (i == id(selected_program_index)) {
+            it.printf(0, 25 + (i * 15), id(font_medium), "> %s", programs[i].c_str());
+          } else {
+            it.printf(10, 25 + (i * 15), id(font_medium), "%s", programs[i].c_str());
+          }
+        }
+        
+        it.print(0, 100, id(font_small), "◄► Navigate  ●Select  ■Settings");
+        
+        // Show WiFi setup hint if not connected
+        if (!id(wifi_connected)) {
+          it.print(0, 115, id(font_small), "Long press ■ for WiFi setup");
+        }
+        
+      } else if (id(menu_mode) == 1) {
+        // Settings menu
+        it.printf(0, 0, id(font_large), "SETTINGS");
+        
+        std::vector<std::string> programs = {"GT Pin", "GT Fruit", "Oyster", "Reishi"};
+        it.printf(0, 20, id(font_medium), "%s Program", programs[id(selected_program_index)].c_str());
+        
+        std::vector<std::string> settings = {
+          "White LED %",
+          "Blue LED %", 
+          "Humidity %",
+          "Fan Speed %",
+          "Photoperiod H"
+        };
+        
+        for (int i = 0; i < 5; i++) {
+          if (i == id(selected_setting_index)) {
+            float value = 0;
+            if (id(selected_program_index) == 0) { // GT Pinning
+              float values[] = {id(gt_pin_white), id(gt_pin_blue), id(gt_pin_humidity), id(gt_pin_fan), id(gt_pin_photoperiod)};
+              value = values[i];
+            } else if (id(selected_program_index) == 1) { // GT Fruiting
+              float values[] = {id(gt_fruit_white), id(gt_fruit_blue), id(gt_fruit_humidity), id(gt_fruit_fan), id(gt_fruit_photoperiod)};
+              value = values[i];
+            }
+            it.printf(0, 40 + (i * 12), id(font_medium), "> %s: %.0f", settings[i].c_str(), value);
+          } else {
+            float value = 0;
+            if (id(selected_program_index) == 0) {
+              float values[] = {id(gt_pin_white), id(gt_pin_blue), id(gt_pin_humidity), id(gt_pin_fan), id(gt_pin_photoperiod)};
+              value = values[i];
+            } else if (id(selected_program_index) == 1) {
+              float values[] = {id(gt_fruit_white), id(gt_fruit_blue), id(gt_fruit_humidity), id(gt_fruit_fan), id(gt_fruit_photoperiod)};
+              value = values[i];
+            }
+            it.printf(10, 40 + (i * 12), id(font_medium), "%s: %.0f", settings[i].c_str(), value);
+          }
+        }
+        
+        it.print(0, 110, id(font_small), "◄► Nav ●Edit ■Back ▲Start");
+        
+      } else if (id(menu_mode) == 2) {
+        // Edit mode
+        it.print(0, 0, id(font_large), "EDIT SETTING");
+        
+        std::vector<std::string> settings = {"White LED %", "Blue LED %", "Humidity %", "Fan Speed %", "Photoperiod H"};
+        it.printf(0, 25, id(font_medium), "%s", settings[id(selected_setting_index)].c_str());
+        
+        float current_value = 0;
+        if (id(selected_program_index) == 0) {
+          float values[] = {id(gt_pin_white), id(gt_pin_blue), id(gt_pin_humidity), id(gt_pin_fan), id(gt_pin_photoperiod)};
+          current_value = values[id(selected_setting_index)];
+        } else if (id(selected_program_index) == 1) {
+          float values[] = {id(gt_fruit_white), id(gt_fruit_blue), id(gt_fruit_humidity), id(gt_fruit_fan), id(gt_fruit_photoperiod)};
+          current_value = values[id(selected_setting_index)];
+        }
+        
+        it.printf(0, 50, id(font_large), ">>> %.0f <<<", current_value);
+        
+        // Show range hints
+        if (id(selected_setting_index) == 0 || id(selected_setting_index) == 1) {
+          it.print(0, 75, id(font_small), "Range: 0-100%");
+        } else if (id(selected_setting_index) == 2) {
+          it.print(0, 75, id(font_small), "Range: 70-95%");
+        } else if (id(selected_setting_index) == 3) {
+          it.print(0, 75, id(font_small), "Range: 0-100%");
+        } else if (id(selected_setting_index) == 4) {
+          it.print(0, 75, id(font_small), "Range: 8-16 hours");
+        }
+        
+        it.print(0, 90, id(font_small), "◄► Adjust ●Save ■Cancel");
+        
+      } else if (id(menu_mode) == 3) {
+        // Program running display
+        std::vector<std::string> programs = {"GT Pinning", "GT Fruiting", "Oyster", "Reishi"};
+        if (id(running_program_index) >= 0 && id(running_program_index) < 4) {
+          it.printf(0, 0, id(font_large), "%s", programs[id(running_program_index)].c_str());
+        } else {
+          it.print(0, 0, id(font_large), "NO PROGRAM");
+        }
+        
+        it.print(0, 25, id(font_medium), "RUNNING...");
+        
+        // Show current environment
+        it.printf(0, 50, id(font_medium), "Temp: %.1f°C", id(temperature).state);
+        it.printf(0, 65, id(font_medium), "Humidity: %.1f%%", id(humidity).state);
+        
+        // Show WiFi status and IP
+        if (id(wifi_connected)) {
+          std::string ip = id(wifi_ip).state;
+          it.printf(0, 80, id(font_small), "IP: %s", ip.c_str());
+        }
+        
+        // Show current settings being used
+        if (id(running_program_index) == 0) {
+          it.printf(0, 95, id(font_small), "White: %.0f%% Blue: %.0f%%", id(gt_pin_white), id(gt_pin_blue));
+          it.printf(0, 108, id(font_small), "RH: %.0f%% Fan: %.0f%%", id(gt_pin_humidity), id(gt_pin_fan));
+        } else if (id(running_program_index) == 1) {
+          it.printf(0, 95, id(font_small), "White: %.0f%% Blue: %.0f%%", id(gt_fruit_white), id(gt_fruit_blue));
+          it.printf(0, 108, id(font_small), "RH: %.0f%% Fan: %.0f%%", id(gt_fruit_humidity), id(gt_fruit_fan));
+        }
+        
+        it.print(0, 120, id(font_small), "■ Stop Program");
+        
+      } else if (id(menu_mode) == 4) {
+        // WiFi setup mode - network scan
+        it.print(0, 0, id(font_large), "WIFI SETUP");
+        
+        if (id(wifi_scan_complete)) {
+          it.print(0, 20, id(font_medium), "Select Network:");
+          
+          // Show available networks (simplified display)
+          std::vector<std::string> networks = id(discovered_networks);
+          int start_idx = max(0, min((int)networks.size() - 3, id(selected_network_index) - 1));
+          
+          for (int i = 0; i < min(3, (int)networks.size()); i++) {
+            int net_idx = start_idx + i;
+            if (net_idx == id(selected_network_index)) {
+              it.printf(0, 40 + (i * 15), id(font_medium), "> %s", networks[net_idx].c_str());
+            } else {
+              it.printf(10, 40 + (i * 15), id(font_medium), "%s", networks[net_idx].c_str());
+            }
+          }
+          
+          it.print(0, 95, id(font_small), "◄► Select  ●Connect  ■Back");
+        } else {
+          it.print(0, 20, id(font_medium), "Scanning networks...");
+          it.print(0, 50, id(font_small), "Please wait");
+        }
+        
+      } else if (id(menu_mode) == 5) {
+        // Password entry mode
+        it.print(0, 0, id(font_large), "WIFI PASSWORD");
+        
+        std::string selected_ssid = id(discovered_networks)[id(selected_network_index)];
+        it.printf(0, 20, id(font_small), "Network: %s", selected_ssid.c_str());
+        
+        it.print(0, 35, id(font_medium), "Enter Password:");
+        
+        // Show current password being typed
+        std::string display_password = "";
+        for (int i = 0; i < id(wifi_password_entered).length(); i++) {
+          display_password += "*";
+        }
+        it.printf(0, 55, id(font_medium), "%s", display_password.c_str());
+        
+        // Show current character selection
+        char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+";
+        char current_char = chars[id(char_index) % strlen(chars)];
+        it.printf(0, 75, id(font_large), ">> %c <<", current_char);
+        
+        it.print(0, 95, id(font_small), "◄► Char  ●Add  ■Done/Back");
+        it.print(0, 108, id(font_small), "Hold ● = Delete char");
+      }
+
+font:
+  - file: fonts/arial.ttf
+    id: font_large
+    size: 14
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 11
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"
+      id: humidity
+    update_interval: 10s
+
+  - platform: pulse_counter
+    pin: 12
+    name: "Fan Speed"
+    id: fan_speed
+    unit_of_measurement: 'RPM'
+
+  # WiFi signal strength sensor
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      id: wifi_ip
+    ssid:
+      name: "Connected SSID"
+      id: wifi_ssid
+    mac_address:
+      name: "MAC Address"
+    scan_results:
+      name: "WiFi Scan"
+      id: wifi_scan_results
+      
+  # ESPHome version
+  - platform: version
+    name: "ESPHome Version"
+  
+  # Stored WiFi credentials (persistent)
+  - platform: template
+    name: "Stored WiFi SSID"
+    id: wifi_ssid_stored
+    
+  - platform: template
+    name: "Stored WiFi Password"
+    id: wifi_password_stored
+
+# All the menu system globals and scripts from previous version...
+globals:
+  - id: menu_mode
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: selected_program_index
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: selected_setting_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: running_program_index
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: program_running
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: gt_pin_white
+    type: float
+    restore_value: true
+    initial_value: '70.0'
+  - id: gt_pin_blue  
+    type: float
+    restore_value: true
+    initial_value: '80.0'
+  - id: gt_pin_humidity
+    type: float
+    restore_value: true
+    initial_value: '95.0'
+  - id: gt_pin_fan
+    type: float
+    restore_value: true
+    initial_value: '60.0'
+  - id: gt_pin_photoperiod
+    type: float
+    restore_value: true
+    initial_value: '12.0'
+  - id: gt_fruit_white
+    type: float
+    restore_value: true
+    initial_value: '100.0'
+  - id: gt_fruit_blue
+    type: float
+    restore_value: true
+    initial_value: '60.0'
+  - id: gt_fruit_humidity
+    type: float
+    restore_value: true
+    initial_value: '87.0'
+  - id: gt_fruit_fan
+    type: float
+    restore_value: true
+    initial_value: '40.0'
+  - id: gt_fruit_photoperiod
+    type: float
+    restore_value: true
+    initial_value: '12.0'
+  
+  # WiFi setup globals
+  - id: wifi_scan_complete
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: selected_network_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: char_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: wifi_password_entered
+    type: std::string
+    restore_value: false
+    initial_value: '""'
+  - id: discovered_networks
+    type: std::vector<std::string>
+    restore_value: false
+  
+  # WiFi credentials storage
+  - id: wifi_ssid_global
+    type: std::string
+    restore_value: true
+    initial_value: '""'
+  - id: wifi_password_global
+    type: std::string
+    restore_value: true
+    initial_value: '""'
+
+# Button Interface and WiFi Status
+binary_sensor:
+  # WiFi status sensor
+  - platform: status
+    name: "WiFi Connected"
+    id: wifi_connected
+
+  # I2C Button Interface (0x6F GPIO Expander)  
+  - platform: template
+    name: "Left Button"
+    id: left_button
+    
+  - platform: template
+    name: "Select Button"
+    id: select_button
+    
+  - platform: template
+    name: "Right Button" 
+    id: right_button
+    
+  - platform: template
+    name: "Menu Button"
+    id: menu_button
+
+# Hardware outputs - Updated for actual Shrooly pins
+output:
+  - platform: ledc
+    pin: GPIO15
+    id: fan_output
+    frequency: 25000 Hz
+  - platform: gpio
+    pin: GPIO16
+    id: humidifier_output
+  - platform: ledc
+    pin: GPIO17
+    id: white_led_output
+  - platform: ledc
+    pin: GPIO18
+    id: red_output
+  - platform: ledc
+    pin: GPIO19
+    id: green_output
+  - platform: ledc
+    pin: GPIO20
+    id: blue_output
+
+fan:
+  - platform: speed
+    name: "Circulation Fan"
+    id: circulation_fan
+    output: fan_output
+
+switch:
+  - platform: output
+    name: "Humidifier"
+    id: humidifier
+    output: humidifier_output
+
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_output
+  - platform: rgb
+    name: "RGB LEDs" 
+    id: rgb_leds
+    red: red_output
+    green: green_output
+    blue: blue_output
+
+# All the button scripts from the previous version remain the same
+script:
+  - id: button_left
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0;
+          then:
+            - lambda: id(selected_program_index) = (id(selected_program_index) + 3) % 4;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 1;
+          then:
+            - lambda: id(selected_setting_index) = (id(selected_setting_index) + 4) % 5;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 2;
+          then:
+            - script.execute: decrease_setting
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 4;
+          then:
+            - lambda: id(selected_network_index) = (id(selected_network_index) + id(discovered_networks).size() - 1) % id(discovered_networks).size();
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 5;
+          then:
+            - lambda: id(char_index) = (id(char_index) + 62) % 63;  // 63 total chars
+            - component.update: epd_display
+
+  - id: button_right
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0;
+          then:
+            - lambda: id(selected_program_index) = (id(selected_program_index) + 1) % 4;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 1;
+          then:
+            - lambda: id(selected_setting_index) = (id(selected_setting_index) + 1) % 5;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 2;
+          then:
+            - script.execute: increase_setting
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 4;
+          then:
+            - lambda: id(selected_network_index) = (id(selected_network_index) + 1) % id(discovered_networks).size();
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 5;
+          then:
+            - lambda: id(char_index) = (id(char_index) + 1) % 63;
+            - component.update: epd_display
+
+  - id: button_select
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0;
+          then:
+            - script.execute: start_selected_program
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 1;
+          then:
+            - lambda: id(menu_mode) = 2;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 2;
+          then:
+            - lambda: id(menu_mode) = 1;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 3;
+          then:
+            - script.execute: stop_program
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 4;
+          then:
+            - script.execute: wifi_connect_to_selected
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 5;
+          then:
+            - script.execute: wifi_password_add_char
+
+  - id: button_menu
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0;
+          then:
+            - lambda: |-
+                id(menu_mode) = 1;
+                id(selected_setting_index) = 0;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 1;
+          then:
+            - lambda: id(menu_mode) = 0;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 2;
+          then:
+            - lambda: id(menu_mode) = 1;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(program_running);
+          then:
+            - script.execute: stop_program
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 4;
+          then:
+            - lambda: |-
+                id(menu_mode) = 0;
+                id(wifi_scan_complete) = false;
+            - component.update: epd_display
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 5;
+          then:
+            - script.execute: wifi_save_and_connect
+
+  - id: increase_setting
+    then:
+      - lambda: |-
+          float* setting_ptr = nullptr;
+          float increment = 1.0;
+          float max_val = 100.0;
+          
+          if (id(selected_program_index) == 0) {
+            float* settings[] = {&id(gt_pin_white), &id(gt_pin_blue), &id(gt_pin_humidity), &id(gt_pin_fan), &id(gt_pin_photoperiod)};
+            setting_ptr = settings[id(selected_setting_index)];
+          } else if (id(selected_program_index) == 1) {
+            float* settings[] = {&id(gt_fruit_white), &id(gt_fruit_blue), &id(gt_fruit_humidity), &id(gt_fruit_fan), &id(gt_fruit_photoperiod)};
+            setting_ptr = settings[id(selected_setting_index)];
+          }
+          
+          if (setting_ptr != nullptr) {
+            if (id(selected_setting_index) == 2) { // Humidity
+              increment = 1.0; max_val = 95.0;
+            } else if (id(selected_setting_index) == 4) { // Photoperiod
+              increment = 0.5; max_val = 16.0;
+            }
+            *setting_ptr = min(*setting_ptr + increment, max_val);
+          }
+      - component.update: epd_display
+
+  - id: decrease_setting
+    then:
+      - lambda: |-
+          float* setting_ptr = nullptr;
+          float decrement = 1.0;
+          float min_val = 0.0;
+          
+          if (id(selected_program_index) == 0) {
+            float* settings[] = {&id(gt_pin_white), &id(gt_pin_blue), &id(gt_pin_humidity), &id(gt_pin_fan), &id(gt_pin_photoperiod)};
+            setting_ptr = settings[id(selected_setting_index)];
+          } else if (id(selected_program_index) == 1) {
+            float* settings[] = {&id(gt_fruit_white), &id(gt_fruit_blue), &id(gt_fruit_humidity), &id(gt_fruit_fan), &id(gt_fruit_photoperiod)};
+            setting_ptr = settings[id(selected_setting_index)];
+          }
+          
+          if (setting_ptr != nullptr) {
+            if (id(selected_setting_index) == 2) {
+              decrement = 1.0; min_val = 70.0;
+            } else if (id(selected_setting_index) == 4) {
+              decrement = 0.5; min_val = 8.0;
+            }
+            *setting_ptr = max(*setting_ptr - decrement, min_val);
+          }
+      - component.update: epd_display
+
+  - id: start_selected_program
+    then:
+      - lambda: |-
+          id(running_program_index) = id(selected_program_index);
+          id(program_running) = true;
+          id(menu_mode) = 3;
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 0;
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: !lambda return id(gt_pin_white) / 100.0;
+            - light.turn_on:
+                id: rgb_leds
+                brightness: !lambda return id(gt_pin_blue) / 100.0;
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: !lambda return id(gt_pin_fan) / 100.0;
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 1;
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: !lambda return id(gt_fruit_white) / 100.0;
+            - light.turn_on:
+                id: rgb_leds
+                brightness: !lambda return id(gt_fruit_blue) / 100.0;
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: !lambda return id(gt_fruit_fan) / 100.0;
+      - component.update: epd_display
+
+  - id: stop_program
+    then:
+      - lambda: |-
+          id(program_running) = false;
+          id(running_program_index) = -1;
+          id(menu_mode) = 0;
+      - light.turn_off: white_leds
+      - light.turn_off: rgb_leds  
+      - switch.turn_off: humidifier
+      - fan.turn_off: circulation_fan
+      - component.update: epd_display
+
+  # WiFi setup scripts
+  - id: wifi_setup_start
+    then:
+      - logger.log: "Starting WiFi setup mode"
+      - lambda: |-
+          id(menu_mode) = 4;
+          id(wifi_scan_complete) = false;
+          id(selected_network_index) = 0;
+          id(discovered_networks).clear();
+      - component.update: epd_display
+      - script.execute: wifi_scan_networks
+
+  - id: wifi_scan_networks
+    then:
+      - logger.log: "Scanning for WiFi networks"
+      - lambda: |-
+          // Parse WiFi scan results and populate discovered_networks
+          std::string scan_results = id(wifi_scan_results).state;
+          id(discovered_networks).clear();
+          
+          // Simple parsing - split by newlines and extract SSIDs
+          size_t pos = 0;
+          std::string delimiter = "\n";
+          std::string token;
+          
+          while ((pos = scan_results.find(delimiter)) != std::string::npos) {
+            token = scan_results.substr(0, pos);
+            // Extract SSID from scan result line (basic parsing)
+            if (token.find("SSID: ") != std::string::npos) {
+              std::string ssid = token.substr(token.find("SSID: ") + 6);
+              if (ssid.length() > 0 && ssid != "<hidden>") {
+                id(discovered_networks).push_back(ssid);
+              }
+            }
+            scan_results.erase(0, pos + delimiter.length());
+          }
+          
+          // Add some common networks if scan is empty
+          if (id(discovered_networks).empty()) {
+            id(discovered_networks).push_back("[Enter manually]");
+          }
+          
+          id(wifi_scan_complete) = true;
+      - component.update: epd_display
+
+  - id: wifi_connect_to_selected
+    then:
+      - lambda: |-
+          if (id(selected_network_index) < id(discovered_networks).size()) {
+            std::string selected_ssid = id(discovered_networks)[id(selected_network_index)];
+            
+            if (selected_ssid == "[Enter manually]") {
+              // Manual SSID entry would need additional implementation
+              ESP_LOGI("wifi", "Manual SSID entry not implemented yet");
+            } else {
+              // Move to password entry
+              id(menu_mode) = 5;
+              id(wifi_password_entered) = "";
+              id(char_index) = 0;
+            }
+          }
+      - component.update: epd_display
+
+  - id: wifi_password_add_char
+    then:
+      - lambda: |-
+          char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+";
+          if (id(char_index) < strlen(chars)) {
+            id(wifi_password_entered) += chars[id(char_index)];
+          }
+      - component.update: epd_display
+
+  - id: wifi_password_delete_char
+    then:
+      - lambda: |-
+          if (id(wifi_password_entered).length() > 0) {
+            id(wifi_password_entered).pop_back();
+          }
+      - component.update: epd_display
+
+  - id: wifi_save_and_connect
+    then:
+      - lambda: |-
+          if (id(selected_network_index) < id(discovered_networks).size()) {
+            std::string selected_ssid = id(discovered_networks)[id(selected_network_index)];
+            std::string entered_password = id(wifi_password_entered);
+            
+            // Save to persistent storage
+            id(wifi_ssid_global) = selected_ssid;
+            id(wifi_password_global) = entered_password;
+            id(wifi_ssid_stored).publish_state(selected_ssid);
+            id(wifi_password_stored).publish_state(entered_password);
+            
+            ESP_LOGI("wifi", "Saved WiFi credentials for SSID: %s", selected_ssid.c_str());
+            
+            // Return to main menu
+            id(menu_mode) = 0;
+          }
+      - logger.log: "WiFi credentials saved, restarting to connect"
+      - component.update: epd_display
+      - delay: 2s
+      - lambda: App.safe_reboot();
+
+# I2C Button monitoring with debouncing - detects button presses from 0x6F GPIO expander
+interval:
+  - interval: 0.1s  # Slower polling to reduce noise
+    then:
+      - lambda: |-
+          static uint8_t last_button_value = 0xFF;
+          static uint8_t stable_button_value = 0xFF;
+          static uint8_t debounce_counter = 0;
+          static unsigned long button_press_time[4] = {0, 0, 0, 0};
+          static bool button_pressed[4] = {false, false, false, false};
+          static unsigned long last_button_action = 0;
+          
+          // Read from 0x6F I2C button controller
+          Wire.beginTransmission(0x6F);
+          uint8_t error = Wire.endTransmission();
+          
+          if (error == 0) {
+            Wire.requestFrom(0x6F, 1);
+            if (Wire.available()) {
+              uint8_t current_value = Wire.read();
+              
+              // Debouncing: only accept changes after 3 consecutive same readings
+              if (current_value == last_button_value) {
+                debounce_counter++;
+              } else {
+                debounce_counter = 0;
+                last_button_value = current_value;
+                return;  // Wait for stable reading
+              }
+              
+              // Only process after 3 stable readings (300ms debounce)
+              if (debounce_counter >= 3 && current_value != stable_button_value) {
+                unsigned long now = millis();
+                
+                // Prevent rapid-fire actions (minimum 500ms between button actions)
+                if (now - last_button_action < 500) {
+                  return;
+                }
+                
+                ESP_LOGD("buttons", "Stable button change: 0x%02X -> 0x%02X", stable_button_value, current_value);
+                
+                // Only trigger on button PRESS (not release)
+                // Button 1 (Left): 0x25 pattern
+                if (current_value == 0x25 && stable_button_value != 0x25 && !button_pressed[0]) {
+                  button_pressed[0] = true;
+                  last_button_action = now;
+                  id(left_button).publish_state(true);
+                  id(button_left).execute();
+                  ESP_LOGI("buttons", "LEFT button pressed");
+                } else if (current_value != 0x25 && button_pressed[0]) {
+                  button_pressed[0] = false;
+                  id(left_button).publish_state(false);
+                }
+                
+                // Button 2 (Select): 0x01 pattern  
+                if (current_value == 0x01 && stable_button_value != 0x01 && !button_pressed[1]) {
+                  button_pressed[1] = true;
+                  button_press_time[1] = now;
+                  last_button_action = now;
+                  id(select_button).publish_state(true);
+                  id(button_select).execute();
+                  ESP_LOGI("buttons", "SELECT button pressed");
+                } else if (current_value != 0x01 && button_pressed[1]) {
+                  // Check for long press on release
+                  if (now - button_press_time[1] > 1000 && now - button_press_time[1] < 3000) {
+                    if (id(menu_mode) == 5) {
+                      id(wifi_password_delete_char).execute();
+                    }
+                  }
+                  button_pressed[1] = false;
+                  id(select_button).publish_state(false);
+                }
+                
+                // Button 3 (Right): 0x19 pattern
+                if (current_value == 0x19 && stable_button_value != 0x19 && !button_pressed[2]) {
+                  button_pressed[2] = true;
+                  last_button_action = now;
+                  id(right_button).publish_state(true);
+                  id(button_right).execute();
+                  ESP_LOGI("buttons", "RIGHT button pressed");
+                } else if (current_value != 0x19 && button_pressed[2]) {
+                  button_pressed[2] = false;
+                  id(right_button).publish_state(false);
+                }
+                
+                // Button 4 (Menu): 0x58 pattern
+                if (current_value == 0x58 && stable_button_value != 0x58 && !button_pressed[3]) {
+                  button_pressed[3] = true;
+                  button_press_time[3] = now;
+                  last_button_action = now;
+                  id(menu_button).publish_state(true);
+                  id(button_menu).execute();
+                  ESP_LOGI("buttons", "MENU button pressed");
+                } else if (current_value != 0x58 && button_pressed[3]) {
+                  // Check for long press on release
+                  if (now - button_press_time[3] > 2000 && now - button_press_time[3] < 5000) {
+                    id(wifi_setup_start).execute();
+                  }
+                  button_pressed[3] = false;
+                  id(menu_button).publish_state(false);
+                }
+                
+                stable_button_value = current_value;
+              }
+            }
+          } else {
+            // I2C error - reset state
+            debounce_counter = 0;
+            ESP_LOGW("buttons", "I2C error reading 0x6F: %d", error);
+          }

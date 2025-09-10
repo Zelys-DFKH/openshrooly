@@ -1,0 +1,215 @@
+# I2C Diagnostic - Isolate sensor vs button issues
+esphome:
+  name: i2c-diagnostic
+  friendly_name: I2C Diagnostic
+  project:
+    name: "diagnostic.i2c"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "I2C-Diagnostic-Setup"
+    password: "shrooly123"
+
+captive_portal:
+web_server:
+  port: 80
+
+# I2C bus - slower speed for stability
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 50khz  # Slower speed
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 10
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 30s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "I2C DIAGNOSTIC");
+      it.print(5, 20, id(font_small), "Checking devices...");
+      
+      if (id(temp_valid)) {
+        it.printf(5, 35, id(font_small), "SHT4x: %.1f°C %.1f%%", id(temperature).state, id(humidity).state);
+      } else {
+        it.print(5, 35, id(font_small), "SHT4x: ERROR/NaN");
+      }
+      
+      if (id(button_valid)) {
+        it.printf(5, 50, id(font_small), "Buttons: 0x%02X", id(last_button_val));
+      } else {
+        it.print(5, 50, id(font_small), "Buttons: NO RESPONSE");
+      }
+      
+      it.print(5, 65, id(font_small), "Press buttons for test");
+      it.print(5, 80, id(font_small), "Check serial output!");
+
+globals:
+  - id: temp_valid
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: button_valid
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: last_button_val
+    type: int
+    restore_value: false
+    initial_value: '255'
+
+# Test sensor separately - no continuous updates
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+      on_value:
+        then:
+          - lambda: |-
+              if (!isnan(x)) {
+                id(temp_valid) = true;
+                ESP_LOGI("sensor", "✅ SHT4x working: %.2f°C", x);
+              } else {
+                id(temp_valid) = false;
+                ESP_LOGE("sensor", "❌ SHT4x NaN error");
+              }
+    humidity:
+      name: "Humidity"
+      id: humidity
+      on_value:
+        then:
+          - lambda: |-
+              if (!isnan(x)) {
+                ESP_LOGI("sensor", "✅ SHT4x humidity: %.2f%%", x);
+              } else {
+                ESP_LOGE("sensor", "❌ SHT4x humidity NaN");
+              }
+    address: 0x44
+    update_interval: 15s  # Slower updates
+
+# Comprehensive I2C scanning and button testing
+interval:
+  - interval: 3s
+    then:
+      - lambda: |-
+          ESP_LOGI("i2c", "=== I2C SCAN START ===");
+          bool found_sensor = false;
+          bool found_buttons = false;
+          
+          // Scan all I2C addresses
+          for (uint8_t addr = 1; addr < 127; addr++) {
+            Wire.beginTransmission(addr);
+            uint8_t error = Wire.endTransmission();
+            
+            if (error == 0) {
+              ESP_LOGI("i2c", "📍 Device found at 0x%02X", addr);
+              
+              if (addr == 0x44) {
+                found_sensor = true;
+                ESP_LOGI("i2c", "✅ SHT4x sensor confirmed at 0x44");
+              }
+              
+              if (addr == 0x6F) {
+                found_buttons = true;
+                ESP_LOGI("i2c", "✅ Button controller confirmed at 0x6F");
+                
+                // Test button controller
+                Wire.requestFrom(addr, 1);
+                if (Wire.available()) {
+                  uint8_t btn_val = Wire.read();
+                  id(last_button_val) = btn_val;
+                  id(button_valid) = true;
+                  ESP_LOGI("i2c", "🎮 Button value: 0x%02X", btn_val);
+                  
+                  if (btn_val != 0xFF) {
+                    ESP_LOGE("i2c", "🟢 BUTTON PRESSED! Value: 0x%02X", btn_val);
+                  }
+                } else {
+                  ESP_LOGE("i2c", "❌ Button controller no data");
+                  id(button_valid) = false;
+                }
+              }
+            }
+          }
+          
+          if (!found_sensor) {
+            ESP_LOGE("i2c", "❌ SHT4x sensor NOT FOUND at 0x44");
+          }
+          if (!found_buttons) {
+            ESP_LOGE("i2c", "❌ Button controller NOT FOUND at 0x6F");
+          }
+          
+          ESP_LOGI("i2c", "=== I2C SCAN END ===");
+
+  # Dedicated button monitoring
+  - interval: 0.5s
+    then:
+      - lambda: |-
+          static uint8_t last_btn = 0xFF;
+          
+          Wire.beginTransmission(0x6F);
+          uint8_t error = Wire.endTransmission();
+          
+          if (error == 0) {
+            Wire.requestFrom(0x6F, 1);
+            if (Wire.available()) {
+              uint8_t current_btn = Wire.read();
+              
+              if (current_btn != last_btn) {
+                ESP_LOGE("buttons", "🔄 BUTTON CHANGE: 0x%02X -> 0x%02X", last_btn, current_btn);
+                
+                if (current_btn == 0x25) {
+                  ESP_LOGE("buttons", "⬅️  LEFT BUTTON PRESSED");
+                } else if (current_btn == 0x01) {
+                  ESP_LOGE("buttons", "⚫ SELECT BUTTON PRESSED");
+                } else if (current_btn == 0x19) {
+                  ESP_LOGE("buttons", "➡️  RIGHT BUTTON PRESSED");
+                } else if (current_btn == 0x58) {
+                  ESP_LOGE("buttons", "🔲 MENU BUTTON PRESSED");
+                } else if (current_btn == 0xFF) {
+                  ESP_LOGI("buttons", "🔓 All buttons released");
+                }
+                
+                last_btn = current_btn;
+                id(my_display).update();
+              }
+            }
+          } else {
+            ESP_LOGE("buttons", "❌ Button controller I2C error: %d", error);
+          }

@@ -1,0 +1,111 @@
+# Minimal Working Shrooly - Emergency Recovery
+esphome:
+  name: minimal-shrooly
+  friendly_name: Minimal Shrooly
+  project:
+    name: "minimal.shrooly"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: INFO
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Minimal-Shrooly-Setup"
+    password: "shrooly123"
+  reboot_timeout: 15min
+
+captive_portal:
+
+web_server:
+  port: 80
+
+# Working I2C bus
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+# SPI for display
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+# Display
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    model: 2.90inv2-r2
+    rotation: 90°
+    id: epd_display
+    update_interval: 30s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "MINIMAL SHROOLY");
+      it.print(5, 25, id(font_medium), "Recovery Mode");
+      it.print(5, 45, id(font_medium), "Buttons Working!");
+      it.printf(5, 65, id(font_small), "Temp: %.1f°C", id(temperature).state);
+      it.printf(5, 80, id(font_small), "Humidity: %.1f%%", id(humidity).state);
+
+# Font
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 10
+
+# Sensors
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"
+      id: humidity
+    update_interval: 10s
+
+# Simple button test - just log when pressed
+binary_sensor:
+  - platform: template
+    name: "Test Button"
+    id: test_button
+
+# Simple I2C button monitoring - just log values
+interval:
+  - interval: 2s
+    then:
+      - lambda: |-
+          Wire.beginTransmission(0x6F);
+          uint8_t error = Wire.endTransmission();
+          
+          if (error == 0) {
+            Wire.requestFrom(0x6F, 1);
+            if (Wire.available()) {
+              uint8_t current_value = Wire.read();
+              ESP_LOGI("buttons", "0x6F value: 0x%02X", current_value);
+              
+              // Simple button detection - just update display when buttons pressed
+              if (current_value != 0xFF) {
+                id(epd_display).update();
+              }
+            }
+          }

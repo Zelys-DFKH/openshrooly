@@ -1,0 +1,362 @@
+# Enhanced OpenShrooly Configuration
+# Combining original Shrooly menu with ESPHome flexibility
+
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Enhanced OpenShrooly
+  project:
+    name: "enhanced.openshrooly"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "your-api-key-here"
+
+ota:
+  - platform: esphome
+    password: "your-ota-password"
+
+wifi:
+  ssid: "YourWiFiSSID"
+  password: "YourWiFiPassword"
+  
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Enhanced-OpenShrooly"
+    password: "openshrooly"
+
+captive_portal:
+
+# Web server for configuration
+web_server:
+  port: 80
+
+# I2C for sensors
+i2c:
+  sda: 8
+  scl: 9
+  scan: true
+
+# SPI for display
+spi:
+  clk_pin: 18
+  mosi_pin: 23
+  miso_pin: 19
+
+# E-Paper Display (matching original Shrooly)
+display:
+  - platform: waveshare_epaper
+    cs_pin: 5
+    dc_pin: 17
+    busy_pin: 4
+    reset_pin: 16
+    model: 2.13in-ttgo-b73
+    rotation: 270°
+    id: epd_display
+    update_interval: 30s
+    lambda: |-
+      // Original Shrooly-style menu display
+      it.print(0, 0, id(font_large), "Shrooly Menu");
+      
+      // Current program status
+      if (id(current_program).state == "golden_teacher_pinning") {
+        it.print(0, 25, id(font_medium), "► Golden Teacher");
+        it.print(0, 45, id(font_small), "  Pinning Phase");
+      } else if (id(current_program).state == "golden_teacher_fruiting") {
+        it.print(0, 25, id(font_medium), "► Golden Teacher");
+        it.print(0, 45, id(font_small), "  Fruiting Phase");
+      } else if (id(current_program).state == "oyster") {
+        it.print(0, 25, id(font_medium), "► Oyster");
+      } else if (id(current_program).state == "reishi") {
+        it.print(0, 25, id(font_medium), "► Reishi");
+      } else {
+        it.print(0, 25, id(font_medium), "Select Program:");
+        it.print(0, 45, id(font_small), "Golden Teacher");
+        it.print(0, 60, id(font_small), "Oyster");
+        it.print(0, 75, id(font_small), "Reishi");
+      }
+      
+      // Environment status
+      it.printf(0, 100, id(font_small), "Temp: %.1f°C", id(temperature).state);
+      it.printf(0, 115, id(font_small), "RH: %.1f%%", id(humidity).state);
+
+# Fonts for display
+font:
+  - file: "fonts/arial.ttf"
+    id: font_large
+    size: 16
+  - file: "fonts/arial.ttf" 
+    id: font_medium
+    size: 12
+  - file: "fonts/arial.ttf"
+    id: font_small
+    size: 10
+
+# Temperature & Humidity Sensor
+sensor:
+  - platform: sht3xd
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"
+      id: humidity
+    address: 0x44
+    update_interval: 10s
+
+  # Fan speed monitoring
+  - platform: pulse_counter
+    pin: 12
+    name: "Fan Speed"
+    id: fan_speed
+    unit_of_measurement: 'RPM'
+    accuracy_decimals: 0
+
+# Current program tracker
+text_sensor:
+  - platform: template
+    name: "Current Program"
+    id: current_program
+    initial_value: "none"
+
+# Program selection buttons (matching original 4-button layout)
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 0
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Left Button"
+    id: left_button
+    on_press:
+      - script.execute: previous_program
+
+  - platform: gpio
+    pin:
+      number: 35
+      mode: INPUT_PULLUP  
+      inverted: true
+    name: "Left-Center Button"
+    id: left_center_button
+    on_press:
+      - script.execute: select_program
+
+  - platform: gpio
+    pin:
+      number: 32
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Right-Center Button" 
+    id: right_center_button
+    on_press:
+      - script.execute: next_program
+
+  - platform: gpio
+    pin:
+      number: 33
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Right Button"
+    id: right_button
+    on_press:
+      - script.execute: start_stop_program
+
+# Control outputs
+output:
+  # Fan control
+  - platform: ledc
+    pin: 25
+    id: fan_output
+    frequency: 25000 Hz
+
+  # Humidifier
+  - platform: gpio
+    pin: 26
+    id: humidifier_output
+
+  # White LEDs  
+  - platform: ledc
+    pin: 27
+    id: white_led_output
+
+  # RGB LEDs
+  - platform: ledc
+    pin: 14
+    id: red_output
+  - platform: ledc
+    pin: 13
+    id: green_output
+  - platform: ledc
+    pin: 12
+    id: blue_output
+
+# Control components
+fan:
+  - platform: speed
+    name: "Circulation Fan"
+    id: circulation_fan
+    output: fan_output
+
+switch:
+  - platform: output
+    name: "Humidifier"
+    id: humidifier
+    output: humidifier_output
+
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_output
+    
+  - platform: rgb
+    name: "RGB LEDs" 
+    id: rgb_leds
+    red: red_output
+    green: green_output
+    blue: blue_output
+
+# Global variables for menu navigation
+globals:
+  - id: selected_program_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+    
+  - id: program_running
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+# Program list
+text_sensor:
+  - platform: template
+    name: "Available Programs"
+    id: program_list
+    lambda: |-
+      std::vector<std::string> programs = {
+        "golden_teacher_pinning",
+        "golden_teacher_fruiting", 
+        "oyster",
+        "reishi"
+      };
+      return programs[id(selected_program_index)];
+
+# Scripts for menu navigation (matching original behavior)
+script:
+  - id: previous_program
+    then:
+      - lambda: |-
+          id(selected_program_index) = (id(selected_program_index) + 3) % 4;
+      - component.update: epd_display
+
+  - id: next_program  
+    then:
+      - lambda: |-
+          id(selected_program_index) = (id(selected_program_index) + 1) % 4;
+      - component.update: epd_display
+
+  - id: select_program
+    then:
+      - lambda: |-
+          std::vector<std::string> programs = {
+            "golden_teacher_pinning",
+            "golden_teacher_fruiting",
+            "oyster", 
+            "reishi"
+          };
+          id(current_program).publish_state(programs[id(selected_program_index)]);
+      - component.update: epd_display
+
+  - id: start_stop_program
+    then:
+      - if:
+          condition:
+            lambda: return !id(program_running);
+          then:
+            - script.execute: start_selected_program
+          else:
+            - script.execute: stop_program
+
+  # Golden Teacher Pinning Program
+  - id: start_golden_teacher_pinning
+    then:
+      - logger.log: "Starting Golden Teacher Pinning Program"
+      - globals.set:
+          id: program_running
+          value: 'true'
+      # Set parameters for pinning phase
+      - light.turn_on:
+          id: white_leds
+          brightness: 70%  # High intensity for pinning
+      - light.turn_on:
+          id: rgb_leds
+          brightness: 50%
+          red: 0%
+          green: 0%
+          blue: 80%  # Blue light for pin formation
+      - switch.turn_on: humidifier  # High humidity for pinning
+      - fan.turn_on:
+          id: circulation_fan
+          speed: 60%  # Moderate air circulation
+      - component.update: epd_display
+
+  # Golden Teacher Fruiting Program  
+  - id: start_golden_teacher_fruiting
+    then:
+      - logger.log: "Starting Golden Teacher Fruiting Program"
+      - globals.set:
+          id: program_running
+          value: 'true'
+      # Set parameters for fruiting phase
+      - light.turn_on:
+          id: white_leds
+          brightness: 100%  # Maximum intensity for fruiting
+      - light.turn_on:
+          id: rgb_leds
+          brightness: 30%
+          red: 0%
+          green: 0%
+          blue: 60%  # Some blue light for continued development
+      - switch.turn_on: humidifier  # Lower humidity for fruiting
+      - fan.turn_on:
+          id: circulation_fan
+          speed: 40%  # Lower air circulation for fruiting
+      - component.update: epd_display
+
+  # Generic program starter
+  - id: start_selected_program
+    then:
+      - lambda: |-
+          std::string program = id(current_program).state;
+          if (program == "golden_teacher_pinning") {
+            id(start_golden_teacher_pinning).execute();
+          } else if (program == "golden_teacher_fruiting") {
+            id(start_golden_teacher_fruiting).execute();
+          }
+          // Add other programs here
+
+  - id: stop_program
+    then:
+      - logger.log: "Stopping current program"
+      - globals.set:
+          id: program_running
+          value: 'false'
+      - light.turn_off: white_leds
+      - light.turn_off: rgb_leds  
+      - switch.turn_off: humidifier
+      - fan.turn_off: circulation_fan
+      - text_sensor.template.publish:
+          id: current_program
+          state: "none"
+      - component.update: epd_display

@@ -1,0 +1,247 @@
+# Comprehensive I2C Scanner - Find ALL devices and test button theories
+esphome:
+  name: i2c-scanner
+  friendly_name: Comprehensive I2C Scanner
+  project:
+    name: "scanner.i2c"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "I2C-Scanner-Setup"
+    password: "shrooly123"
+
+captive_portal:
+web_server:
+  port: 80
+
+# I2C bus - multiple speeds to test
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 10
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 30s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "I2C COMPREHENSIVE SCAN");
+      it.print(5, 20, id(font_small), "Scanning all addresses...");
+      
+      // Show discovered devices
+      int y_pos = 35;
+      for (int i = 0; i < id(device_count); i++) {
+        it.printf(5, y_pos, id(font_small), "0x%02X: Testing...", id(found_devices)[i]);
+        y_pos += 12;
+      }
+      
+      it.print(5, 100, id(font_small), "Press ALL buttons!");
+      it.print(5, 112, id(font_small), "Check serial output!");
+
+globals:
+  - id: device_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: found_devices
+    type: uint8_t[20]  # Array to store found device addresses
+    restore_value: false
+
+# Test if buttons might be direct GPIO after all
+binary_sensor:
+  # Test some likely GPIO pins again with different configs
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO0 Test"
+    id: gpio0_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO0 BUTTON DETECTED!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO1 Test"
+    id: gpio1_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO1 BUTTON DETECTED!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO2 Test"
+    id: gpio2_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO2 BUTTON DETECTED!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO3 Test"
+    id: gpio3_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO3 BUTTON DETECTED!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO4 Test"
+    id: gpio4_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO4 BUTTON DETECTED!"
+          level: ERROR
+
+# Exhaustive I2C scanning and testing
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          ESP_LOGE("scan", "🔍 === COMPREHENSIVE I2C SCAN START ===");
+          id(device_count) = 0;
+          
+          // Scan every single I2C address
+          for (uint8_t addr = 1; addr < 127; addr++) {
+            Wire.beginTransmission(addr);
+            uint8_t error = Wire.endTransmission();
+            
+            if (error == 0) {
+              ESP_LOGE("scan", "📍 DEVICE FOUND AT 0x%02X", addr);
+              
+              if (id(device_count) < 20) {
+                id(found_devices)[id(device_count)] = addr;
+                id(device_count)++;
+              }
+              
+              // Test reading from each found device
+              Wire.requestFrom(addr, 1);
+              if (Wire.available()) {
+                uint8_t data = Wire.read();
+                ESP_LOGE("scan", "📊 0x%02X data: 0x%02X", addr, data);
+              } else {
+                ESP_LOGE("scan", "❌ 0x%02X no data available", addr);
+              }
+            }
+          }
+          
+          ESP_LOGE("scan", "📈 Total devices found: %d", id(device_count));
+          if (id(device_count) == 0) {
+            ESP_LOGE("scan", "❌ NO I2C DEVICES FOUND - CHECK WIRING!");
+          }
+          ESP_LOGE("scan", "🔍 === SCAN COMPLETE ===");
+
+  # Test button theory - try EVERY found device as potential button controller
+  - interval: 2s
+    then:
+      - lambda: |-
+          ESP_LOGE("buttons", "🎮 === BUTTON CONTROLLER SEARCH ===");
+          
+          for (int i = 0; i < id(device_count); i++) {
+            uint8_t addr = id(found_devices)[i];
+            
+            ESP_LOGI("buttons", "Testing 0x%02X as button controller...", addr);
+            
+            Wire.beginTransmission(addr);
+            uint8_t error = Wire.endTransmission();
+            
+            if (error == 0) {
+              Wire.requestFrom(addr, 1);
+              if (Wire.available()) {
+                uint8_t btn_val = Wire.read();
+                ESP_LOGI("buttons", "0x%02X button value: 0x%02X", addr, btn_val);
+                
+                // Check if value changes (indicating button activity)
+                static uint8_t last_values[20] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+                if (btn_val != last_values[i]) {
+                  ESP_LOGE("buttons", "🔄 0x%02X BUTTON CHANGE: 0x%02X -> 0x%02X", addr, last_values[i], btn_val);
+                  last_values[i] = btn_val;
+                }
+              }
+            }
+          }
+          ESP_LOGE("buttons", "🎮 === BUTTON SEARCH COMPLETE ===");
+
+  # Also test GPIO states continuously 
+  - interval: 1s
+    then:
+      - lambda: |-
+          ESP_LOGE("gpio", "🔌 === GPIO STATE MONITORING ===");
+          
+          // Check GPIO states directly
+          std::vector<int> test_pins = {0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
+          
+          for (int pin : test_pins) {
+            pinMode(pin, INPUT_PULLUP);
+            int state = digitalRead(pin);
+            
+            static int last_states[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+            static int pin_index = 0;
+            
+            // Find index for this pin
+            for (int idx = 0; idx < test_pins.size(); idx++) {
+              if (test_pins[idx] == pin) {
+                if (state != last_states[idx]) {
+                  ESP_LOGE("gpio", "🔄 GPIO%d STATE CHANGE: %d -> %d", pin, last_states[idx], state);
+                  if (state == 0) {  // Button pressed (active low)
+                    ESP_LOGE("gpio", "🟢 GPIO%d BUTTON PRESSED!", pin);
+                  }
+                  last_states[idx] = state;
+                }
+                break;
+              }
+            }
+          }
+          ESP_LOGE("gpio", "🔌 === GPIO MONITORING COMPLETE ===");

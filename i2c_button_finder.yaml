@@ -1,0 +1,287 @@
+# I2C Button Finder - Look for I2C GPIO expanders and button controllers
+esphome:
+  name: i2c-button-finder
+  friendly_name: I2C Button Finder
+  project:
+    name: "finder.i2c-buttons"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+wifi:
+  ap:
+    ssid: "I2C-Button-Finder"
+    password: "shrooly123"
+
+# I2C bus for scanning button expanders
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_large
+    size: 14
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_large), "I2C BUTTON FINDER");
+      it.print(5, 25, id(font_medium), "Scanning for button chips...");
+      
+      // Show I2C scan results
+      it.print(5, 45, id(font_small), "I2C Devices Found:");
+      int y = 60;
+      
+      // Common I2C addresses for GPIO expanders:
+      // PCF8574/PCF8575: 0x20-0x27, 0x38-0x3F
+      // MCP23008/MCP23017: 0x20-0x27
+      // TCA9534/TCA9554: 0x20-0x27
+      // PCA9534/PCA9554: 0x20-0x27
+      
+      it.print(5, y, id(font_small), "Common GPIO expander addrs:");
+      y += 10;
+      it.print(5, y, id(font_small), "0x20-0x27 (PCF8574, MCP23017)");
+      y += 10;
+      it.print(5, y, id(font_small), "0x38-0x3F (PCF8574A)");
+      y += 10;
+      it.print(5, y, id(font_small), "0x6F (mentioned in logs)");
+      
+      // Show detected I2C buttons
+      if (id(button_count) > 0) {
+        y = 100;
+        it.printf(5, y, id(font_small), "Found %d I2C buttons:", id(button_count));
+        y += 10;
+        for (int i = 0; i < id(button_count); i++) {
+          int button_id = id(detected_buttons)[i];
+          int chip_addr = (button_id >> 4) & 0xFF;
+          int pin_num = button_id & 0x0F;
+          it.printf(5, y, id(font_small), "Btn%d: 0x%02X Pin%d", i+1, chip_addr, pin_num);
+          y += 10;
+        }
+      } else {
+        it.print(5, 100, id(font_small), "Hold each button 1+ seconds");
+      }
+
+# Test for common I2C GPIO expander chips
+# PCF8574 at various addresses
+pcf8574:
+  - id: pcf8574_20
+    i2c_id: bus_a
+    address: 0x20
+    pcf8575: false
+
+  - id: pcf8574_21  
+    i2c_id: bus_a
+    address: 0x21
+    pcf8575: false
+
+  - id: pcf8574_22
+    i2c_id: bus_a
+    address: 0x22
+    pcf8575: false
+
+  - id: pcf8574_6F
+    i2c_id: bus_a
+    address: 0x6F  # This was mentioned in the conversation history
+    pcf8575: false
+
+# STRICT button detection - only accept deliberate 1-second presses to avoid false sensor readings
+globals:
+  - id: detected_buttons
+    type: int[4]
+    restore_value: false
+  - id: button_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+
+script:
+  - id: record_i2c_button
+    parameters:
+      chip_addr: int
+      pin_num: int
+    then:
+      - lambda: |-
+          if (id(button_count) < 4) {
+            int button_id = (chip_addr << 4) | pin_num;  // Encode chip+pin
+            id(detected_buttons)[id(button_count)] = button_id;
+            id(button_count)++;
+            ESP_LOGE("I2C_BUTTON", "✅ CONFIRMED I2C BUTTON: 0x%02X Pin %d", chip_addr, pin_num);
+          }
+      - component.update: my_display
+
+binary_sensor:
+  # PCF8574 at 0x20 with STRICT filtering - must hold button 1+ seconds
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x20_Pin0"
+    filters:
+      - delayed_on: 1000ms  # Must hold 1 second to avoid sensor noise
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x20
+          pin_num: 0
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x20_Pin1"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x20
+          pin_num: 1
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 2
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x20_Pin2"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x20
+          pin_num: 2
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 3
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x20_Pin3"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x20
+          pin_num: 3
+
+  # PCF8574 at 0x6F with same strict filtering
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_6F
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x6F_Pin0"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x6F
+          pin_num: 0
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_6F
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x6F_Pin1"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x6F
+          pin_num: 1
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_6F
+      number: 2
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x6F_Pin2"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x6F
+          pin_num: 2
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_6F
+      number: 3
+      mode: INPUT
+      inverted: true
+    name: "I2C_0x6F_Pin3"
+    filters:
+      - delayed_on: 1000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_i2c_button
+          chip_addr: 0x6F
+          pin_num: 3
+
+# Also test just GPIO5 which was confirmed working
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Direct_GPIO5_Test"
+    on_press:
+      - logger.log: "🟢 CONFIRMED: Direct GPIO5 still works"
+
+interval:
+  - interval: 5s
+    then:
+      - logger.log: "🔍 I2C Button Finder - Press buttons to test I2C expanders"
+      - component.update: my_display

@@ -1,0 +1,429 @@
+# Comprehensive Button Discovery - Test ALL available ESP32-S3 GPIO pins
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Comprehensive Discovery
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0-comprehensive"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+
+captive_portal:
+web_server:
+  port: 80
+
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 25s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "COMPREHENSIVE");
+      it.print(5, 25, id(font_medium), "Testing ALL pins");
+      it.print(5, 45, id(font_medium), "Press buttons!");
+      it.print(5, 65, id(font_medium), "Check serial log");
+
+binary_sensor:
+  # Known working button (GPIO5)
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO5 Reset"
+    id: gpio5_button
+    on_press:
+      - logger.log: 
+          format: "🔴 GPIO5 RESET - REFERENCE WORKING!"
+          level: ERROR
+
+  # Test ALL remaining available GPIO pins on ESP32-S3
+  # Skip pins already used: GPIO6,7,8,21,35,36,38,48 (display/I2C/SPI)
+  
+  # Low GPIO numbers
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO0"
+    id: gpio0_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO0 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO1"
+    id: gpio1_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO1 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO2"
+    id: gpio2_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO2 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO3"
+    id: gpio3_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO3 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO4"
+    id: gpio4_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO4 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO9"
+    id: gpio9_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO9 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO10"
+    id: gpio10_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO10 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO11"
+    id: gpio11_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO11 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO12"
+    id: gpio12_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO12 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO13"
+    id: gpio13_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO13 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO14"
+    id: gpio14_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO14 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO15
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO15"
+    id: gpio15_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO15 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO16
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO16"
+    id: gpio16_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO16 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO17"
+    id: gpio17_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO17 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO18"
+    id: gpio18_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO18 FOUND!"
+          level: ERROR
+
+  # Test GPIO19-20 (these might be available on some S3 variants)
+  - platform: gpio
+    pin:
+      number: GPIO19
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO19"
+    id: gpio19_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO19 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO20
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO20"
+    id: gpio20_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO20 FOUND!"
+          level: ERROR
+
+  # Skip GPIO26-34 range (not available on ESP32-S3 or used by PSRAM)
+
+  # Test higher GPIO numbers available on ESP32-S3
+  - platform: gpio
+    pin:
+      number: GPIO37
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO37"
+    id: gpio37_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO37 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO39
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO39"
+    id: gpio39_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO39 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO40
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO40"
+    id: gpio40_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO40 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO41
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO41"
+    id: gpio41_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO41 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO42
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO42"
+    id: gpio42_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO42 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO43
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO43"
+    id: gpio43_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO43 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO44
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO44"
+    id: gpio44_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO44 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO45
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO45"
+    id: gpio45_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO45 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO46
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO46"
+    id: gpio46_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO46 FOUND!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO47
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO47"
+    id: gpio47_test
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO47 FOUND!"
+          level: ERROR
+
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"  
+      id: humidity
+    update_interval: 15s
+
+interval:
+  - interval: 10s
+    then:
+      - logger.log: 
+          format: "🔍 COMPREHENSIVE DISCOVERY - Testing ALL GPIO pins"
+          level: ERROR
+      - logger.log:
+          format: "📊 Buttons: Press each one multiple times! %.1f°C"
+          args: [ 'id(temperature).state' ]
+          level: INFO

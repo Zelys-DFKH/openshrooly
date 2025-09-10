@@ -1,0 +1,147 @@
+# Enhanced OpenShrooly Test - Simplified for Initial Flash
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Enhanced OpenShrooly
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0-test"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: INFO
+
+api:
+
+ota:
+  - platform: esphome
+
+# Simple WiFi configuration
+wifi:
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+
+captive_portal:
+
+web_server:
+  port: 80
+
+# I2C for sensors
+i2c:
+  sda: 8
+  scl: 9
+  scan: true
+
+# SPI for display  
+spi:
+  clk_pin: 18
+  mosi_pin: 19
+  miso_pin: 20
+
+# Font for display
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+
+# Simple display test  
+display:
+  - platform: waveshare_epaper
+    cs_pin: 5
+    dc_pin: 17
+    busy_pin: 4
+    reset_pin: 16
+    model: 2.13in-ttgo-b73
+    rotation: 270°
+    id: epd_display
+    update_interval: 30s
+    lambda: |-
+      it.print(0, 0, id(font_medium), "Enhanced OpenShrooly");
+      it.print(0, 20, id(font_medium), "Test Version");
+      it.print(0, 40, id(font_medium), "Flashed Successfully!");
+
+# Temperature & Humidity Sensor
+sensor:
+  - platform: sht3xd
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"  
+      id: humidity
+    address: 0x44
+    update_interval: 10s
+
+# Basic button test
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 0
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Left Button"
+    id: left_button
+    on_press:
+      - logger.log: "Left button pressed"
+
+  - platform: gpio
+    pin:
+      number: 1
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Select Button"
+    id: select_button
+    on_press:
+      - logger.log: "Select button pressed"
+
+  - platform: gpio
+    pin:
+      number: 2
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Right Button" 
+    id: right_button
+    on_press:
+      - logger.log: "Right button pressed"
+
+  - platform: gpio
+    pin:
+      number: 3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Menu Button"
+    id: menu_button
+    on_press:
+      - logger.log: "Menu button pressed"
+
+# Basic hardware outputs for testing
+output:
+  - platform: ledc
+    pin: 10
+    id: fan_output
+    frequency: 25000 Hz
+  - platform: gpio
+    pin: 11
+    id: humidifier_output
+  - platform: ledc
+    pin: 12
+    id: white_led_output
+
+# Basic lights for testing
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_output
+
+# Test switch
+switch:
+  - platform: output
+    name: "Humidifier"
+    id: humidifier
+    output: humidifier_output

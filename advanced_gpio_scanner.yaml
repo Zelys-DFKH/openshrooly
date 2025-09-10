@@ -1,0 +1,264 @@
+# Advanced GPIO Scanner - Test ALL possible button configurations automatically
+esphome:
+  name: advanced-gpio-scanner
+  friendly_name: Advanced GPIO Scanner
+  project:
+    name: "scanner.gpio-advanced"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+wifi:
+  ap:
+    ssid: "Advanced-GPIO-Scanner"
+    password: "shrooly123"
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_large
+    size: 14
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_large), "GPIO SCANNER");
+      it.printf(5, 20, id(font_medium), "Found: %d buttons", id(found_count));
+      it.printf(5, 35, id(font_small), "Last: GPIO%d", id(last_detected));
+      
+      // Show discovered GPIOs
+      int y = 50;
+      for (int i = 0; i < 10 && id(discovered_gpios)[i] != -1; i++) {
+        it.printf(5, y, id(font_small), "GPIO%d", id(discovered_gpios)[i]);
+        y += 10;
+      }
+
+globals:
+  - id: found_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: last_detected
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: discovered_gpios
+    type: int[10]
+    restore_value: false
+
+script:
+  - id: record_gpio
+    parameters:
+      gpio_num: int
+    then:
+      - lambda: |-
+          // Check if already recorded
+          bool already_found = false;
+          for (int i = 0; i < 10; i++) {
+            if (id(discovered_gpios)[i] == gpio_num) {
+              already_found = true;
+              break;
+            }
+          }
+          
+          if (!already_found && id(found_count) < 10) {
+            id(discovered_gpios)[id(found_count)] = gpio_num;
+            id(found_count)++;
+            id(last_detected) = gpio_num;
+            ESP_LOGE("SCANNER", "🎯 FOUND BUTTON: GPIO%d (Total: %d)", gpio_num, id(found_count));
+          }
+      - component.update: my_display
+
+binary_sensor:
+  # Test every possible GPIO with both pull-up and pull-down configurations
+  # Comprehensive ESP32-S3 GPIO scanning
+  
+  # GPIO 0-18 with pull-up (inverted)
+  - platform: gpio
+    pin: {number: GPIO0, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO0_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 0}}]
+
+  - platform: gpio
+    pin: {number: GPIO1, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO1_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 1}}]
+
+  - platform: gpio
+    pin: {number: GPIO2, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO2_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 2}}]
+
+  - platform: gpio
+    pin: {number: GPIO3, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO3_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 3}}]
+
+  - platform: gpio
+    pin: {number: GPIO4, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO4_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 4}}]
+
+  - platform: gpio
+    pin: {number: GPIO5, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO5_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 5}}]
+
+  - platform: gpio
+    pin: {number: GPIO9, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO9_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 9}}]
+
+  - platform: gpio
+    pin: {number: GPIO10, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO10_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 10}}]
+
+  - platform: gpio
+    pin: {number: GPIO11, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO11_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 11}}]
+
+  - platform: gpio
+    pin: {number: GPIO12, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO12_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 12}}]
+
+  - platform: gpio
+    pin: {number: GPIO13, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO13_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 13}}]
+
+  - platform: gpio
+    pin: {number: GPIO14, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO14_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 14}}]
+
+  - platform: gpio
+    pin: {number: GPIO15, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO15_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 15}}]
+
+  - platform: gpio
+    pin: {number: GPIO16, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO16_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 16}}]
+
+  - platform: gpio
+    pin: {number: GPIO17, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO17_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 17}}]
+
+  - platform: gpio
+    pin: {number: GPIO18, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO18_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 18}}]
+
+  # High number GPIOs 40-47 with pull-up
+  - platform: gpio
+    pin: {number: GPIO40, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO40_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 40}}]
+
+  - platform: gpio
+    pin: {number: GPIO41, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO41_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 41}}]
+
+  - platform: gpio
+    pin: {number: GPIO42, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO42_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 42}}]
+
+  - platform: gpio
+    pin: {number: GPIO43, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO43_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 43}}]
+
+  - platform: gpio
+    pin: {number: GPIO44, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO44_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 44}}]
+
+  - platform: gpio
+    pin: {number: GPIO45, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO45_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 45}}]
+
+  - platform: gpio
+    pin: {number: GPIO46, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO46_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 46}}]
+
+  - platform: gpio
+    pin: {number: GPIO47, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO47_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 47}}]
+
+  # Test GPIO39 with pull-down (different approach)
+  - platform: gpio
+    pin: {number: GPIO39, mode: INPUT_PULLDOWN, inverted: false}
+    name: "GPIO39_DOWN"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 39}}]
+
+  # Test a few more available pins
+  - platform: gpio
+    pin: {number: GPIO19, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO19_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 19}}]
+
+  - platform: gpio
+    pin: {number: GPIO20, mode: INPUT_PULLUP, inverted: true}
+    name: "GPIO20_UP"
+    filters: [{delayed_on: 20ms}]
+    on_press: [{script.execute: {id: record_gpio, gpio_num: 20}}]

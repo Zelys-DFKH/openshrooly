@@ -1,0 +1,341 @@
+# Display-Optimized ESP32-S3 Pin Mapping Test - Shows results on screen
+esphome:
+  name: display-pin-test
+  friendly_name: Display Pin Test
+  project:
+    name: "test.display-pin-test"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Display-Pin-Test"
+    password: "shrooly123"
+
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_medium), "ESP32-S3 BUTTON PIN TEST");
+      it.printf(5, 20, id(font_small), "Button presses: %d", id(button_count));
+      
+      // Show which pins have been detected
+      int y = 35;
+      if (id(detected_pin_count) > 0) {
+        it.print(5, y, id(font_small), "BUTTONS FOUND ON PINS:");
+        y += 12;
+        
+        // Show up to 8 detected pins on display
+        for (int i = 0; i < id(detected_pin_count) && i < 8; i++) {
+          int pin = id(detected_pins)[i];
+          if (pin == 9) it.printf(5, y, id(font_small), "GPIO%d - LEFT button", pin);
+          else if (pin == 10) it.printf(5, y, id(font_small), "GPIO%d - LEFT alt", pin);
+          else if (pin == 11) it.printf(5, y, id(font_small), "GPIO%d - SELECT button", pin);
+          else if (pin == 12) it.printf(5, y, id(font_small), "GPIO%d - SELECT alt", pin);
+          else if (pin == 13) it.printf(5, y, id(font_small), "GPIO%d - RIGHT button", pin);
+          else if (pin == 14) it.printf(5, y, id(font_small), "GPIO%d - RIGHT alt", pin);
+          else if (pin == 15) it.printf(5, y, id(font_small), "GPIO%d - MENU button", pin);
+          else if (pin == 16) it.printf(5, y, id(font_small), "GPIO%d - MENU alt", pin);
+          else it.printf(5, y, id(font_small), "GPIO%d - Button found", pin);
+          y += 10;
+        }
+      } else {
+        it.print(5, y, id(font_small), "No buttons detected yet");
+        y += 12;
+        it.print(5, y, id(font_small), "Testing these pins:");
+        y += 10;
+        it.print(5, y, id(font_small), "GPIO9,10 (left buttons)");
+        y += 10;
+        it.print(5, y, id(font_small), "GPIO11,12 (select buttons)");
+        y += 10;
+        it.print(5, y, id(font_small), "GPIO13,14 (right buttons)");
+        y += 10;
+        it.print(5, y, id(font_small), "GPIO15,16 (menu buttons)");
+        y += 10;
+        it.print(5, y, id(font_small), "Plus GPIO17,18,37,39");
+      }
+
+globals:
+  - id: button_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: detected_pins
+    type: int[8]
+    restore_value: false
+  - id: detected_pin_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+
+script:
+  - id: record_pin_detection
+    parameters:
+      pin_number: int
+      button_name: std::string
+    then:
+      - lambda: |-
+          // Add pin to detected list if not already there
+          bool already_detected = false;
+          for (int i = 0; i < id(detected_pin_count); i++) {
+            if (id(detected_pins)[i] == pin_number) {
+              already_detected = true;
+              break;
+            }
+          }
+          
+          if (!already_detected && id(detected_pin_count) < 8) {
+            id(detected_pins)[id(detected_pin_count)] = pin_number;
+            id(detected_pin_count)++;
+            ESP_LOGE("PIN_DETECT", "✅ %s BUTTON found on GPIO%d", button_name.c_str(), pin_number);
+          }
+          
+          id(button_count)++;
+      - component.update: my_display
+
+binary_sensor:
+  # ESP32-S3 SAFE alternatives for ESP32 GPIO0 (boot strapping pin)
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO9 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 9
+          button_name: "LEFT"
+
+  - platform: gpio
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO10 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 10
+          button_name: "LEFT ALT"
+
+  # ESP32-S3 alternatives for ESP32 GPIO35
+  - platform: gpio
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO11 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 11
+          button_name: "SELECT"
+
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO12 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 12
+          button_name: "SELECT ALT"
+
+  # ESP32-S3 alternatives for ESP32 GPIO32
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO13 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 13
+          button_name: "RIGHT"
+
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO14 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 14
+          button_name: "RIGHT ALT"
+
+  # ESP32-S3 alternatives for ESP32 GPIO33
+  - platform: gpio
+    pin:
+      number: GPIO15
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO15 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 15
+          button_name: "MENU"
+
+  - platform: gpio
+    pin:
+      number: GPIO16
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO16 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 16
+          button_name: "MENU ALT"
+
+  # Additional test pins
+  - platform: gpio
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO17 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 17
+          button_name: "EXTRA"
+
+  - platform: gpio
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO18 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 18
+          button_name: "EXTRA"
+
+  - platform: gpio
+    pin:
+      number: GPIO37
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO37 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 37
+          button_name: "HIGH"
+
+  - platform: gpio
+    pin:
+      number: GPIO39
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO39 Test"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 39
+          button_name: "HIGH"
+
+  # Known working GPIO5 for reference
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO5 Reference"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - script.execute:
+          id: record_pin_detection
+          pin_number: 5
+          button_name: "REFERENCE"
+
+interval:
+  - interval: 5s
+    then:
+      - component.update: my_display

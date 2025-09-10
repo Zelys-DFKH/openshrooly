@@ -1,0 +1,172 @@
+# Button Decoder for 0x6F I2C GPIO Expander
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Button Decoder 0x6F
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0-decoder"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+
+captive_portal:
+web_server:
+  port: 80
+
+# Working I2C bus
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 30s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "BUTTON DECODER");
+      it.print(5, 25, id(font_medium), "Found buttons at 0x6F!");
+      it.print(5, 45, id(font_medium), "Press buttons now");
+      it.print(5, 65, id(font_medium), "Decoding values...");
+
+# Working reference button
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO5 Reset (Reference)"
+    id: gpio5_button
+    on_press:
+      - logger.log: 
+          format: "🔴 GPIO5 RESET PRESSED - Reference working!"
+          level: ERROR
+
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"  
+      id: humidity
+    update_interval: 10s
+
+# Fast monitoring of 0x6F button controller
+interval:
+  - interval: 0.1s
+    then:
+      - lambda: |-
+          static uint8_t last_value = 0xFF;
+          
+          // Read from 0x6F I2C button controller
+          Wire.beginTransmission(0x6F);
+          uint8_t error = Wire.endTransmission();
+          
+          if (error == 0) {
+            Wire.requestFrom(0x6F, 1);
+            if (Wire.available()) {
+              uint8_t current_value = Wire.read();
+              
+              // Only log when value changes (button press/release)
+              if (current_value != last_value) {
+                ESP_LOGE("buttons", "🟢 0x6F BUTTON CHANGE: 0x%02X -> 0x%02X", last_value, current_value);
+                
+                // Decode individual bits (assuming active low)
+                for (int bit = 0; bit < 8; bit++) {
+                  bool current_bit = (current_value >> bit) & 1;
+                  bool last_bit = (last_value >> bit) & 1;
+                  
+                  if (current_bit != last_bit) {
+                    if (!current_bit) {
+                      ESP_LOGE("buttons", "🔘 BUTTON BIT %d PRESSED (0x6F bit %d = 0)", bit, bit);
+                    } else {
+                      ESP_LOGI("buttons", "🔘 BUTTON BIT %d RELEASED (0x6F bit %d = 1)", bit, bit);
+                    }
+                  }
+                }
+                
+                // Detect specific button patterns
+                if (current_value == 0x7F) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 1 PRESSED (pattern 0x7F)");
+                } else if (current_value == 0xBF) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 2 PRESSED (pattern 0xBF)"); 
+                } else if (current_value == 0xDF) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 3 PRESSED (pattern 0xDF)");
+                } else if (current_value == 0xEF) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 4 PRESSED (pattern 0xEF)");
+                } else if (current_value == 0xF7) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 5 PRESSED (pattern 0xF7)");
+                } else if (current_value == 0xFB) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 6 PRESSED (pattern 0xFB)");
+                } else if (current_value == 0xFD) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 7 PRESSED (pattern 0xFD)");
+                } else if (current_value == 0xFE) {
+                  ESP_LOGE("buttons", "🔘 BUTTON 8 PRESSED (pattern 0xFE)");
+                }
+                
+                last_value = current_value;
+              }
+            }
+          } else {
+            ESP_LOGW("buttons", "Failed to read from 0x6F: error %d", error);
+          }
+
+  # Slower general monitoring
+  - interval: 3s
+    then:
+      - logger.log: 
+          format: "🔍 BUTTON DECODER - Press buttons to decode patterns"
+          level: ERROR
+      - lambda: |-
+          // Also scan other I2C devices for comparison
+          ESP_LOGI("i2c", "=== QUICK I2C SCAN ===");
+          
+          // Check known devices
+          uint8_t addresses[] = {0x44, 0x6C, 0x6F};
+          for (int i = 0; i < 3; i++) {
+            uint8_t addr = addresses[i];
+            Wire.beginTransmission(addr);
+            if (Wire.endTransmission() == 0) {
+              Wire.requestFrom(addr, 1);
+              if (Wire.available()) {
+                uint8_t value = Wire.read();
+                ESP_LOGI("i2c", "0x%02X = 0x%02X", addr, value);
+              }
+            }
+          }

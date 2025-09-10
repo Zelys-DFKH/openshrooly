@@ -1,0 +1,208 @@
+# Enhanced OpenShrooly - Fixed Pin Configuration for Actual Shrooly Hardware
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Enhanced OpenShrooly
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0-fixed"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: INFO
+
+api:
+
+ota:
+  - platform: esphome
+
+# WiFi configuration with on-device setup support
+wifi:
+  ssid: "ChangeMe"
+  password: "ChangeMe"
+  
+  # Fallback hotspot
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+  
+  reboot_timeout: 15min
+
+captive_portal:
+
+web_server:
+  port: 80
+
+# Correct I2C configuration for Shrooly
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+
+# Correct SPI configuration for Shrooly display
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+# Font for display
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+
+# Correct display configuration for Shrooly
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 30s
+    lambda: |-
+      it.print(30, 20, id(font_medium), "Enhanced OpenShrooly");
+      it.print(30, 40, id(font_medium), "Hardware Test");
+      it.print(30, 60, id(font_medium), "Display Working!");
+      it.print(30, 80, id(font_medium), "Press buttons...");
+
+# Correct temperature & humidity sensor for Shrooly
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"  
+      id: humidity
+    update_interval: 10s
+
+# Correct button configuration for Shrooly (only reset button is known)
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Reset Button"
+    id: reset_button
+    on_press:
+      - logger.log: "Reset button pressed - display should update"
+      - component.update: my_display
+
+# Test other GPIO pins as potential buttons
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Test Button 1"
+    id: test_button_1
+    on_press:
+      - logger.log: "Test Button 1 pressed (GPIO1)"
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Test Button 2"
+    id: test_button_2
+    on_press:
+      - logger.log: "Test Button 2 pressed (GPIO2)"
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Test Button 3"
+    id: test_button_3
+    on_press:
+      - logger.log: "Test Button 3 pressed (GPIO3)"
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Test Button 4"
+    id: test_button_4
+    on_press:
+      - logger.log: "Test Button 4 pressed (GPIO4)"
+
+# Correct hardware outputs for Shrooly
+output:
+  - platform: ledc
+    pin: GPIO39
+    id: white_led_pwm
+    inverted: true
+  - platform: ledc
+    pin: GPIO37
+    id: fan_pwm
+    inverted: true
+
+# RGB LED strip (correct pin for Shrooly)
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_pwm
+
+  - platform: esp32_rmt_led_strip
+    name: "RGB LEDs"
+    id: rgb_leds
+    pin: GPIO42
+    num_leds: 16
+    chipset: ws2812
+    rgb_order: RGB
+
+# Fan control
+fan:
+  - platform: speed
+    name: "Fan"
+    id: circulation_fan
+    output: fan_pwm
+    speed_count: 100
+
+# Humidifier using I2C communication (Shrooly specific)
+switch:
+  - platform: template
+    name: "Humidifier"
+    id: humidifier
+    optimistic: true
+    turn_on_action:
+      - lambda: |-
+          uint8_t data[2] = {0x00, 0x01};
+          id(bus_a).write(0x6C, data, 2);
+          ESP_LOGI("humidifier", "TURN ON: sent [0x00,0x01] to 0x6C");
+    turn_off_action:
+      - lambda: |-
+          uint8_t data[2] = {0x00, 0x00};
+          id(bus_a).write(0x6C, data, 2);
+          ESP_LOGI("humidifier", "TURN OFF: sent [0x00,0x00] to 0x6C");
+
+# Test LED patterns
+interval:
+  - interval: 5s
+    then:
+      - light.turn_on:
+          id: white_leds
+          brightness: 50%
+      - delay: 1s  
+      - light.turn_off: white_leds
+      - light.turn_on:
+          id: rgb_leds
+          red: 100%
+          green: 0%
+          blue: 0%
+          brightness: 30%
+      - delay: 1s
+      - light.turn_off: rgb_leds

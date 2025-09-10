@@ -1,0 +1,218 @@
+# Ultimate Interface Scanner - Test ALL possible button connection methods
+esphome:
+  name: ultimate-interface-scanner
+  friendly_name: Ultimate Interface Scanner
+  project:
+    name: "scanner.ultimate-interface"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+wifi:
+  ap:
+    ssid: "Ultimate-Interface-Scanner"
+    password: "shrooly123"
+
+# Test ALL I2C addresses
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_medium), "ULTIMATE INTERFACE SCANNER");
+      it.print(5, 20, id(font_medium), "Testing ALL methods...");
+      it.printf(5, 35, id(font_medium), "I2C scans: %d", id(i2c_scan_count));
+      it.printf(5, 50, id(font_medium), "Analog changes: %d", id(analog_changes));
+      it.printf(5, 65, id(font_medium), "Interface detected: %s", id(interface_type).c_str());
+      
+      if (id(button_detected)) {
+        it.print(5, 80, id(font_medium), "BUTTON INTERFACE FOUND!");
+        it.printf(5, 95, id(font_medium), "Method: %s", id(detection_method).c_str());
+      } else {
+        it.print(5, 80, id(font_medium), "Still scanning...");
+        it.print(5, 95, id(font_medium), "Press buttons during scan");
+      }
+
+globals:
+  - id: i2c_scan_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: analog_changes
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: button_detected
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: interface_type
+    type: std::string
+    restore_value: false
+    initial_value: '"Unknown"'
+  - id: detection_method
+    type: std::string
+    restore_value: false
+    initial_value: '"None"'
+  - id: last_analog_values
+    type: float[4]
+    restore_value: false
+
+# Test analog inputs for button voltage dividers
+sensor:
+  - platform: adc
+    pin: GPIO1
+    name: "Analog GPIO1"
+    id: analog_gpio1
+    update_interval: 100ms
+    accuracy_decimals: 3
+    on_value:
+      - lambda: |-
+          float current = x;
+          float last = id(last_analog_values)[0];
+          if (abs(current - last) > 0.1) {  // Significant change
+            id(analog_changes)++;
+            id(last_analog_values)[0] = current;
+            if (!id(button_detected)) {
+              id(button_detected) = true;
+              id(interface_type) = "Analog";
+              id(detection_method) = "GPIO1 voltage ladder";
+              ESP_LOGE("ULTIMATE", "🎯 ANALOG BUTTON DETECTED on GPIO1: %.3fV", current);
+            }
+          }
+      - component.update: my_display
+
+  - platform: adc
+    pin: GPIO2
+    name: "Analog GPIO2"
+    id: analog_gpio2
+    update_interval: 100ms
+    accuracy_decimals: 3
+    on_value:
+      - lambda: |-
+          float current = x;
+          float last = id(last_analog_values)[1];
+          if (abs(current - last) > 0.1) {
+            id(analog_changes)++;
+            id(last_analog_values)[1] = current;
+            if (!id(button_detected)) {
+              id(button_detected) = true;
+              id(interface_type) = "Analog";
+              id(detection_method) = "GPIO2 voltage ladder";
+              ESP_LOGE("ULTIMATE", "🎯 ANALOG BUTTON DETECTED on GPIO2: %.3fV", current);
+            }
+          }
+      - component.update: my_display
+
+  - platform: adc
+    pin: GPIO3
+    name: "Analog GPIO3"
+    id: analog_gpio3
+    update_interval: 100ms
+    accuracy_decimals: 3
+    on_value:
+      - lambda: |-
+          float current = x;
+          float last = id(last_analog_values)[2];
+          if (abs(current - last) > 0.1) {
+            id(analog_changes)++;
+            id(last_analog_values)[2] = current;
+            if (!id(button_detected)) {
+              id(button_detected) = true;
+              id(interface_type) = "Analog";
+              id(detection_method) = "GPIO3 voltage ladder";
+              ESP_LOGE("ULTIMATE", "🎯 ANALOG BUTTON DETECTED on GPIO3: %.3fV", current);
+            }
+          }
+      - component.update: my_display
+
+  - platform: adc
+    pin: GPIO4
+    name: "Analog GPIO4" 
+    id: analog_gpio4
+    update_interval: 100ms
+    accuracy_decimals: 3
+    on_value:
+      - lambda: |-
+          float current = x;
+          float last = id(last_analog_values)[3];
+          if (abs(current - last) > 0.1) {
+            id(analog_changes)++;
+            id(last_analog_values)[3] = current;
+            if (!id(button_detected)) {
+              id(button_detected) = true;
+              id(interface_type) = "Analog";
+              id(detection_method) = "GPIO4 voltage ladder";
+              ESP_LOGE("ULTIMATE", "🎯 ANALOG BUTTON DETECTED on GPIO4: %.3fV", current);
+            }
+          }
+      - component.update: my_display
+
+script:
+  # Comprehensive I2C scanning script
+  - id: comprehensive_i2c_scan
+    then:
+      - lambda: |-
+          id(i2c_scan_count)++;
+          ESP_LOGE("I2C_SCAN", "🔍 Comprehensive I2C scan #%d", id(i2c_scan_count));
+          
+          // Test common button controller addresses
+          std::vector<uint8_t> test_addresses = {
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,  // PCF8574
+            0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,  // PCF8574A  
+            0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76,  // Custom addresses
+            0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47   // Other expanders
+          };
+          
+          for (uint8_t addr : test_addresses) {
+            if (id(bus_a)->ping(addr)) {
+              if (!id(button_detected)) {
+                id(button_detected) = true;
+                id(interface_type) = "I2C Device";
+                id(detection_method) = "I2C addr 0x" + format_hex(addr);
+                ESP_LOGE("ULTIMATE", "🎯 I2C DEVICE DETECTED at 0x%02X", addr);
+              }
+              
+              // Try to read from the device
+              uint8_t data;
+              if (id(bus_a)->read(addr, &data, 1) == i2c::ERROR_OK) {
+                ESP_LOGE("I2C_READ", "📖 Device 0x%02X data: 0x%02X", addr, data);
+              }
+            }
+          }
+      - component.update: my_display
+
+interval:
+  - interval: 2s
+    then:
+      - script.execute: comprehensive_i2c_scan
+      - logger.log: "🔍 ULTIMATE SCAN - Press buttons while scanning all interfaces"

@@ -1,0 +1,400 @@
+# Comprehensive I2C GPIO Expander Test - All Possible Addresses and Configurations
+esphome:
+  name: comprehensive-i2c-expander
+  friendly_name: Comprehensive I2C Expander Test
+  project:
+    name: "test.comprehensive-i2c-expanders"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+wifi:
+  ap:
+    ssid: "Comprehensive-I2C-Test"
+    password: "shrooly123"
+
+# I2C with different configurations
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 50khz  # Try slower speed
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_medium), "I2C EXPANDER TEST");
+      it.printf(5, 20, id(font_small), "I2C button presses: %d", id(total_i2c_buttons));
+      
+      // Show I2C scan results
+      int y = 35;
+      if (id(total_i2c_buttons) > 0) {
+        it.print(5, y, id(font_small), "I2C BUTTONS FOUND!");
+        y += 12;
+        it.printf(5, y, id(font_small), "PCF8574: %d buttons", id(pcf8574_buttons));
+        y += 10;
+        it.printf(5, y, id(font_small), "PCF8574A: %d buttons", id(pcf8574a_buttons));
+        y += 10;
+        it.printf(5, y, id(font_small), "Custom addr: %d buttons", id(custom_buttons));
+        y += 10;
+        it.printf(5, y, id(font_small), "Total: %d I2C buttons", id(total_i2c_buttons));
+      } else {
+        it.print(5, y, id(font_small), "No I2C buttons detected");
+        y += 12;
+        it.print(5, y, id(font_small), "Testing I2C addresses:");
+        y += 10;
+        it.print(5, y, id(font_small), "0x20-0x27 (PCF8574)");
+        y += 10;
+        it.print(5, y, id(font_small), "0x38-0x3F (PCF8574A)");
+        y += 10;
+        it.print(5, y, id(font_small), "0x6F, 0x40, 0x41, 0x70");
+        y += 10;
+        it.print(5, y, id(font_small), "Hold buttons 2+ seconds");
+      }
+
+globals:
+  - id: pcf8574_buttons
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: pcf8574a_buttons
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: mcp23008_buttons
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: custom_buttons
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: total_i2c_buttons
+    type: int
+    restore_value: false
+    initial_value: '0'
+
+# Test PCF8574 at ALL possible addresses (0x20-0x27)
+pcf8574:
+  - id: pcf8574_20
+    i2c_id: bus_a
+    address: 0x20
+    pcf8575: false
+  - id: pcf8574_21
+    i2c_id: bus_a
+    address: 0x21
+    pcf8575: false
+  - id: pcf8574_22
+    i2c_id: bus_a
+    address: 0x22
+    pcf8575: false
+  - id: pcf8574_23
+    i2c_id: bus_a
+    address: 0x23
+    pcf8575: false
+  - id: pcf8574_24
+    i2c_id: bus_a
+    address: 0x24
+    pcf8575: false
+  - id: pcf8574_25
+    i2c_id: bus_a
+    address: 0x25
+    pcf8575: false
+  - id: pcf8574_26
+    i2c_id: bus_a
+    address: 0x26
+    pcf8575: false
+  - id: pcf8574_27
+    i2c_id: bus_a
+    address: 0x27
+    pcf8575: false
+
+# Test PCF8574A at ALL possible addresses (0x38-0x3F)
+  - id: pcf8574a_38
+    i2c_id: bus_a
+    address: 0x38
+    pcf8575: false
+  - id: pcf8574a_39
+    i2c_id: bus_a
+    address: 0x39
+    pcf8575: false
+  - id: pcf8574a_3a
+    i2c_id: bus_a
+    address: 0x3A
+    pcf8575: false
+  - id: pcf8574a_3b
+    i2c_id: bus_a
+    address: 0x3B
+    pcf8575: false
+  - id: pcf8574a_3c
+    i2c_id: bus_a
+    address: 0x3C
+    pcf8575: false
+  - id: pcf8574a_3d
+    i2c_id: bus_a
+    address: 0x3D
+    pcf8575: false
+  - id: pcf8574a_3e
+    i2c_id: bus_a
+    address: 0x3E
+    pcf8575: false
+  - id: pcf8574a_3f
+    i2c_id: bus_a
+    address: 0x3F
+    pcf8575: false
+
+# Test other common expander addresses
+  - id: custom_6f
+    i2c_id: bus_a
+    address: 0x6F  # Mentioned in conversation
+    pcf8575: false
+  - id: custom_40
+    i2c_id: bus_a
+    address: 0x40
+    pcf8575: false
+  - id: custom_41
+    i2c_id: bus_a
+    address: 0x41
+    pcf8575: false
+  - id: custom_70
+    i2c_id: bus_a
+    address: 0x70
+    pcf8575: false
+
+script:
+  - id: record_button_detection
+    parameters:
+      chip_type: std::string
+      chip_addr: int
+      pin_num: int
+    then:
+      - lambda: |-
+          id(total_i2c_buttons)++;
+          if (chip_type == "PCF8574") id(pcf8574_buttons)++;
+          else if (chip_type == "PCF8574A") id(pcf8574a_buttons)++;
+          else if (chip_type == "MCP23008") id(mcp23008_buttons)++;
+          else id(custom_buttons)++;
+          ESP_LOGE("I2C_DETECT", "✅ %s BUTTON: 0x%02X Pin %d", chip_type.c_str(), chip_addr, pin_num);
+      - component.update: my_display
+
+binary_sensor:
+  # PCF8574 standard addresses (0x20-0x27) - Test all 8 pins each
+  # 0x20
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "PCF8574_0x20_Pin0"
+    filters:
+      - delayed_on: 2000ms  # 2 second hold required
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574"
+          chip_addr: 0x20
+          pin_num: 0
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "PCF8574_0x20_Pin1"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574"
+          chip_addr: 0x20
+          pin_num: 1
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 2
+      mode: INPUT
+      inverted: true
+    name: "PCF8574_0x20_Pin2"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574"
+          chip_addr: 0x20
+          pin_num: 2
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_20
+      number: 3
+      mode: INPUT
+      inverted: true
+    name: "PCF8574_0x20_Pin3"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574"
+          chip_addr: 0x20
+          pin_num: 3
+
+  # PCF8574A addresses (0x38-0x3F) - Test key pins
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574a_38
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "PCF8574A_0x38_Pin0"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574A"
+          chip_addr: 0x38
+          pin_num: 0
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574a_38
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "PCF8574A_0x38_Pin1"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574A"
+          chip_addr: 0x38
+          pin_num: 1
+
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574a_39
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "PCF8574A_0x39_Pin0"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "PCF8574A"
+          chip_addr: 0x39
+          pin_num: 0
+
+  # Custom addresses
+  - platform: gpio
+    pin:
+      pcf8574: custom_6f
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "Custom_0x6F_Pin0"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "CUSTOM"
+          chip_addr: 0x6F
+          pin_num: 0
+
+  - platform: gpio
+    pin:
+      pcf8574: custom_6f
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "Custom_0x6F_Pin1"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "CUSTOM"
+          chip_addr: 0x6F
+          pin_num: 1
+
+  - platform: gpio
+    pin:
+      pcf8574: custom_40
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "Custom_0x40_Pin0"
+    filters:
+      - delayed_on: 2000ms
+      - delayed_off: 100ms
+    on_press:
+      - script.execute:
+          id: record_button_detection
+          chip_type: "CUSTOM"
+          chip_addr: 0x40
+          pin_num: 0
+
+  # Test GPIO5 as reference
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Reference_GPIO5"
+    filters:
+      - delayed_on: 100ms
+      - delayed_off: 100ms
+    on_press:
+      - logger.log: "🟢 REFERENCE: GPIO5 still works"
+
+interval:
+  - interval: 3s
+    then:
+      - logger.log: "🔍 I2C Comprehensive Test - Hold each button 2+ seconds"
+      - component.update: my_display

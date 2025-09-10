@@ -1,0 +1,482 @@
+# Working Enhanced OpenShrooly - I2C Button Version
+esphome:
+  name: working-enhanced-openshrooly
+  friendly_name: Working Enhanced OpenShrooly
+  project:
+    name: "working.enhanced-openshrooly"
+    version: "2.5.0-i2c-buttons"
+  on_boot:
+    priority: 200
+    then:
+      - lambda: |-
+          id(menu_mode) = 0;
+          id(program_running) = false;
+          id(running_program_index) = -1;
+          id(selected_program_index) = 0;
+      - delay: 2s
+      - component.update: epd_display
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: INFO
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Working-Enhanced-OpenShrooly"
+    password: "shrooly123"
+  reboot_timeout: 15min
+
+captive_portal:
+web_server:
+  port: 80
+
+# Working I2C configuration
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    model: 2.90inv2-r2
+    rotation: 90°
+    id: epd_display
+    update_interval: never
+    lambda: |-
+      if (id(menu_mode) == 0) {
+        // Main program selection menu
+        it.print(5, 5, id(font_large), "ENHANCED OPENSHROOLY");
+        it.print(5, 20, id(font_small), "I2C Button Version - WORKING!");
+        
+        // Sensor readings
+        if (!isnan(id(temperature).state) && !isnan(id(humidity).state)) {
+          it.printf(5, 35, id(font_small), "T:%.1f°C H:%.1f%%", id(temperature).state, id(humidity).state);
+        } else {
+          it.print(5, 35, id(font_small), "Sensor: Initializing...");
+        }
+        
+        it.line(0, 45, 200, 45);
+        it.print(5, 50, id(font_medium), "SELECT PROGRAM:");
+        
+        std::vector<std::string> programs = {
+          "Golden Teacher Pinning",
+          "Golden Teacher Fruiting", 
+          "Oyster Mushroom",
+          "Reishi Mushroom"
+        };
+        
+        for (int i = 0; i < 4; i++) {
+          if (i == id(selected_program_index)) {
+            it.printf(5, 65 + (i * 10), id(font_small), "> %s", programs[i].c_str());
+          } else {
+            it.printf(15, 65 + (i * 10), id(font_small), "%s", programs[i].c_str());
+          }
+        }
+        
+        it.line(0, 105, 200, 105);
+        it.print(5, 110, id(font_small), "I2C Buttons: UP/DOWN/SELECT/MENU");
+        
+      } else if (id(menu_mode) == 1 && id(program_running)) {
+        // Program running display
+        std::vector<std::string> programs = {"GT Pinning", "GT Fruiting", "Oyster", "Reishi"};
+        if (id(running_program_index) >= 0 && id(running_program_index) < 4) {
+          it.printf(5, 5, id(font_large), "%s RUNNING", programs[id(running_program_index)].c_str());
+        }
+        
+        it.print(5, 25, id(font_medium), "STATUS: ACTIVE");
+        it.printf(5, 45, id(font_medium), "Temperature: %.1f°C", id(temperature).state);
+        it.printf(5, 60, id(font_medium), "Humidity: %.1f%%", id(humidity).state);
+        
+        // Equipment status  
+        std::string led_status = id(white_leds).current_values.is_on() ? "ON" : "OFF";
+        std::string hum_status = id(humidifier).state ? "ON" : "OFF";
+        std::string fan_status = id(circulation_fan).state ? "ON" : "OFF";
+        it.printf(5, 80, id(font_small), "LEDs:%s Humid:%s Fan:%s", led_status.c_str(), hum_status.c_str(), fan_status.c_str());
+        
+        it.line(0, 105, 200, 105);
+        it.print(5, 110, id(font_small), "MENU: Long press to stop program");
+        
+      } else {
+        // Fallback to main menu
+        id(menu_mode) = 0;
+      }
+
+font:
+  - file: fonts/arial.ttf
+    id: font_large
+    size: 14
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 11
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity" 
+      id: humidity
+    address: 0x44
+    update_interval: 10s
+
+# I2C GPIO Expanders - Based on discovered custom addresses
+pcf8574:
+  - id: button_expander_6f
+    i2c_id: bus_a
+    address: 0x6F
+    pcf8575: false
+  - id: button_expander_40
+    i2c_id: bus_a
+    address: 0x40
+    pcf8575: false
+  - id: button_expander_41
+    i2c_id: bus_a
+    address: 0x41
+    pcf8575: false
+  - id: button_expander_70
+    i2c_id: bus_a
+    address: 0x70
+    pcf8575: false
+
+binary_sensor:
+  - platform: status
+    name: "WiFi Connected"
+    id: wifi_connected
+
+  # Test all I2C addresses and pins that detected buttons
+  # Address 0x6F - Test all 8 pins
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_6f
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "Left Button (0x6F:0)"
+    id: left_button
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🔴 LEFT BUTTON PRESSED!"
+      - script.execute: handle_left_button
+
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_6f
+      number: 1
+      mode: INPUT
+      inverted: true
+    name: "Select Button (0x6F:1)"
+    id: select_button
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🟢 SELECT BUTTON PRESSED!"
+      - script.execute: handle_select_button
+
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_6f
+      number: 2
+      mode: INPUT
+      inverted: true
+    name: "Right Button (0x6F:2)"
+    id: right_button
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🟡 RIGHT BUTTON PRESSED!"
+      - script.execute: handle_right_button
+
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_6f
+      number: 3
+      mode: INPUT
+      inverted: true
+    name: "Menu Button (0x6F:3)"
+    id: menu_button
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🔵 MENU BUTTON PRESSED!"
+      - script.execute: handle_menu_button
+    on_click:
+      min_length: 2000ms
+      max_length: 5000ms
+      then:
+        - logger.log: "🔵 MENU BUTTON LONG PRESS!"
+        - script.execute: handle_menu_long_press
+
+  # Test backup addresses 0x40, 0x41, 0x70 in case buttons are spread across multiple chips
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_40
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "Backup Button 1 (0x40:0)"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🔸 BACKUP BUTTON 1 PRESSED!"
+      - script.execute: handle_left_button
+
+  - platform: gpio
+    pin:
+      pcf8574: button_expander_41
+      number: 0
+      mode: INPUT
+      inverted: true
+    name: "Backup Button 2 (0x41:0)"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - logger.log: "🔹 BACKUP BUTTON 2 PRESSED!"
+      - script.execute: handle_right_button
+
+globals:
+  - id: menu_mode
+    type: int
+    restore_value: false
+    initial_value: '0'  # 0 = program selection, 1 = program running
+  - id: selected_program_index
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: running_program_index
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: program_running
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+# Hardware outputs
+output:
+  - platform: ledc
+    pin: GPIO15  # White LED
+    id: white_led_output
+    frequency: 25000 Hz
+  - platform: gpio
+    pin: GPIO16  # Humidifier
+    id: humidifier_output
+  - platform: ledc
+    pin: GPIO17  # Fan
+    id: fan_output
+    frequency: 25000 Hz
+  - platform: ledc
+    pin: GPIO18  # Red LED
+    id: red_output
+    frequency: 25000 Hz
+  - platform: ledc
+    pin: GPIO19  # Green LED
+    id: green_output
+    frequency: 25000 Hz
+  - platform: ledc
+    pin: GPIO20  # Blue LED
+    id: blue_output
+    frequency: 25000 Hz
+
+fan:
+  - platform: speed
+    name: "Circulation Fan"
+    id: circulation_fan
+    output: fan_output
+
+switch:
+  - platform: output
+    name: "Humidifier"
+    id: humidifier
+    output: humidifier_output
+
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_output
+  - platform: rgb
+    name: "RGB LEDs"
+    id: rgb_leds
+    red: red_output
+    green: green_output
+    blue: blue_output
+
+script:
+  # Button handlers for menu navigation
+  - id: handle_left_button
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0 && !id(program_running);
+          then:
+            # In menu mode: move selection up
+            - lambda: |-
+                id(selected_program_index) = (id(selected_program_index) - 1 + 4) % 4;
+            - component.update: epd_display
+
+  - id: handle_right_button
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0 && !id(program_running);
+          then:
+            # In menu mode: move selection down
+            - lambda: |-
+                id(selected_program_index) = (id(selected_program_index) + 1) % 4;
+            - component.update: epd_display
+
+  - id: handle_select_button
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0 && !id(program_running);
+          then:
+            # In menu mode: start selected program
+            - script.execute: start_selected_program
+
+  - id: handle_menu_button
+    then:
+      - if:
+          condition:
+            lambda: return id(program_running);
+          then:
+            # In program mode: quick press shows menu
+            - lambda: id(menu_mode) = 0;
+            - component.update: epd_display
+
+  - id: handle_menu_long_press
+    then:
+      - if:
+          condition:
+            lambda: return id(program_running);
+          then:
+            # Long press: stop program
+            - script.execute: stop_program
+
+  - id: start_selected_program
+    then:
+      - lambda: |-
+          id(running_program_index) = id(selected_program_index);
+          id(program_running) = true;
+          id(menu_mode) = 1;
+      - logger.log: "🚀 Starting selected mushroom program"
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 0;  # GT Pinning
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: 70%
+            - light.turn_on:
+                id: rgb_leds
+                brightness: 80%
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: 60
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 1;  # GT Fruiting
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: 100%
+            - light.turn_on:
+                id: rgb_leds
+                brightness: 60%
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: 40
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 2;  # Oyster
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: 80%
+            - light.turn_on:
+                id: rgb_leds
+                brightness: 50%
+                red: 100%
+                green: 50%
+                blue: 0%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: 70
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 3;  # Reishi
+          then:
+            - light.turn_on:
+                id: white_leds
+                brightness: 60%
+            - light.turn_on:
+                id: rgb_leds
+                brightness: 70%
+                red: 100%
+                green: 0%
+                blue: 0%
+            - switch.turn_on: humidifier
+            - fan.turn_on:
+                id: circulation_fan
+                speed: 30
+      - component.update: epd_display
+
+  - id: stop_program
+    then:
+      - lambda: |-
+          id(program_running) = false;
+          id(running_program_index) = -1;
+          id(menu_mode) = 0;
+      - logger.log: "⏹️ Stopping mushroom program"
+      - light.turn_off: white_leds
+      - light.turn_off: rgb_leds
+      - switch.turn_off: humidifier
+      - fan.turn_off: circulation_fan
+      - component.update: epd_display
+
+interval:
+  - interval: 5s
+    then:
+      - component.update: epd_display

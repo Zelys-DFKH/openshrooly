@@ -1,0 +1,122 @@
+esphome:
+  name: shrooly
+  friendly_name: Shrooly
+  platform: ESP32
+  board: esp32-s3-devkitc-1
+
+# WiFi configuration
+wifi:
+  ssid: "UTOPIA"
+  password: "1357913579@@"
+  ap:
+    ssid: "Shrooly Fallback Hotspot"
+    password: "12345678"
+
+captive_portal:
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "YOUR_API_ENCRYPTION_KEY"
+
+ota:
+  password: "YOUR_OTA_PASSWORD"
+
+# Time component
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+# I2C configuration with proper pins for ESP32-S3
+i2c:
+  sda: GPIO8
+  scl: GPIO9
+  scan: true
+  frequency: 100kHz
+
+# SPI configuration for display
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+
+# Fixed fan configuration - removed speed control
+fan:
+  - platform: binary
+    output: fan_output
+    name: "Air Exchange Fan"
+    id: air_exchange_fan
+
+# LEDC output for fan - properly initialized
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: fan_output
+    frequency: 1000Hz
+
+# Fixed display configuration with increased timeouts
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO5
+    dc_pin: GPIO17
+    busy_pin: GPIO4
+    reset_pin: GPIO16
+    model: 2.13in-ttgo-b73
+    full_update_every: 30
+    update_interval: 300s
+    lambda: |-
+      it.print(0, 0, id(font1), "Shrooly Status");
+      it.printf(0, 20, id(font1), "Time: %.2d:%.2d", id(homeassistant_time).now().hour, id(homeassistant_time).now().minute);
+
+font:
+  - file: "gfonts://Roboto"
+    id: font1
+    size: 12
+
+# Humidifier component with proper I2C addressing
+switch:
+  - platform: template
+    name: "Humidifier"
+    id: humidifier
+    turn_on_action:
+      - lambda: |-
+          Wire.beginTransmission(0x6C);
+          Wire.write(0x01);
+          Wire.write(0x01);
+          auto error = Wire.endTransmission();
+          if (error != 0) {
+            ESP_LOGE("humidifier", "I2C error: %d", error);
+          }
+    turn_off_action:
+      - lambda: |-
+          Wire.beginTransmission(0x6C);
+          Wire.write(0x00);
+          Wire.write(0x00);
+          auto error = Wire.endTransmission();
+          if (error != 0) {
+            ESP_LOGE("humidifier", "I2C error: %d", error);
+          }
+
+# Air exchange automation
+interval:
+  - interval: 15min
+    then:
+      - fan.turn_on: air_exchange_fan
+      - delay: 30s
+      - fan.turn_off: air_exchange_fan
+
+# Sensor for monitoring
+sensor:
+  - platform: uptime
+    name: "Shrooly Uptime"
+  
+  - platform: wifi_signal
+    name: "Shrooly WiFi Signal"
+    update_interval: 60s
+
+text_sensor:
+  - platform: version
+    name: "Shrooly ESPHome Version"

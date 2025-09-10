@@ -1,0 +1,387 @@
+# Comprehensive Button Test - Test ALL possible button GPIO pins
+esphome:
+  name: comprehensive-button-test
+  friendly_name: Comprehensive Button Test
+  project:
+    name: "test.comprehensive-buttons"
+    version: "1.0.0"
+  on_boot:
+    priority: 800
+    then:
+      - delay: 3s
+      - component.update: my_display
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Comprehensive-Button-Test"
+    password: "shrooly123"
+
+captive_portal:
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_large
+    size: 14
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 10
+  - file: fonts/arial.ttf
+    id: font_small
+    size: 8
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: never
+    lambda: |-
+      it.print(5, 5, id(font_large), "BUTTON TEST");
+      it.printf(5, 20, id(font_small), "Last: GPIO%d", id(last_gpio));
+      
+      // Show last 8 button presses
+      int y_pos = 35;
+      for (int i = 0; i < 8; i++) {
+        if (id(recent_gpios)[i] != -1) {
+          it.printf(5, y_pos, id(font_small), "%d: GPIO%d", i+1, id(recent_gpios)[i]);
+          y_pos += 10;
+        }
+      }
+      
+      it.printf(5, 115, id(font_small), "Total: %d", id(total_presses));
+
+globals:
+  - id: total_presses
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: last_gpio
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: recent_gpios
+    type: int[8]
+    restore_value: false
+
+script:
+  - id: record_press
+    parameters:
+      gpio_num: int
+    then:
+      - lambda: |-
+          // Shift array and add new GPIO
+          for (int i = 0; i < 7; i++) {
+            id(recent_gpios)[i] = id(recent_gpios)[i+1];
+          }
+          id(recent_gpios)[7] = gpio_num;
+          id(last_gpio) = gpio_num;
+          id(total_presses)++;
+          ESP_LOGE("button", "🟢 GPIO%d PRESSED! Total: %d", gpio_num, id(total_presses));
+      - component.update: my_display
+
+binary_sensor:
+  # Test common ESP32-S3 button pins first
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO0"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 0
+
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO1"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 1
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO2"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 2
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO3"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 3
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO4"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 4
+
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO5"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 5
+
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO9"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 9
+
+  - platform: gpio
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO10"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 10
+
+  - platform: gpio
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO11"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 11
+
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO12"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 12
+
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO13"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 13
+
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO14"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 14
+
+  - platform: gpio
+    pin:
+      number: GPIO15
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO15"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 15
+
+  - platform: gpio
+    pin:
+      number: GPIO16
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO16"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 16
+
+  - platform: gpio
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO17"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 17
+
+  - platform: gpio
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO18"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 18
+
+  # Test some higher numbered pins
+  - platform: gpio
+    pin:
+      number: GPIO40
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO40"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 40
+
+  - platform: gpio
+    pin:
+      number: GPIO41
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO41"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 41
+
+  - platform: gpio
+    pin:
+      number: GPIO42
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO42"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 42
+
+  - platform: gpio
+    pin:
+      number: GPIO43
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO43"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 43
+
+  - platform: gpio
+    pin:
+      number: GPIO44
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO44"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 44
+
+  - platform: gpio
+    pin:
+      number: GPIO45
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO45"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 45
+
+  - platform: gpio
+    pin:
+      number: GPIO46
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO46"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 46
+
+  - platform: gpio
+    pin:
+      number: GPIO47
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO47"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 47
+
+  # Test with pulldown configuration too
+  - platform: gpio
+    pin:
+      number: GPIO39
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO39 PULLDOWN"
+    on_press:
+      - script.execute:
+          id: record_press
+          gpio_num: 39
+
+interval:
+  - interval: 15s
+    then:
+      - logger.log: "🔍 Comprehensive button test - press ALL buttons!"
+      - component.update: my_display

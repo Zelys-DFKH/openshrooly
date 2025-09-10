@@ -1,0 +1,290 @@
+# Final Button Test - Pull-down + I2C scanning
+esphome:
+  name: enhanced-openshrooly
+  friendly_name: Final Button Test
+  project:
+    name: "enhanced.openshrooly"
+    version: "2.2.0-final-test"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "Enhanced-OpenShrooly-Setup"
+    password: "shrooly123"
+
+captive_portal:
+web_server:
+  port: 80
+
+i2c:
+  sda: GPIO36
+  scl: GPIO35
+  scan: true
+  id: bus_a
+  frequency: 100khz
+
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO6
+
+font:
+  - file: fonts/arial.ttf
+    id: font_medium
+    size: 12
+
+display:
+  - platform: waveshare_epaper
+    id: my_display
+    cs_pin: GPIO8
+    dc_pin: GPIO48
+    busy_pin: GPIO38
+    reset_pin: GPIO21
+    rotation: 90°
+    model: 2.90inv2-r2
+    update_interval: 30s
+    lambda: |-
+      it.print(5, 5, id(font_medium), "FINAL BUTTON TEST");
+      it.print(5, 25, id(font_medium), "Pull-down + I2C");
+      it.print(5, 45, id(font_medium), "Press all buttons");
+      it.print(5, 65, id(font_medium), "Check serial!");
+
+binary_sensor:
+  # Known working button (GPIO5)
+  - platform: gpio
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "GPIO5 Reset"
+    id: gpio5_button
+    on_press:
+      - logger.log: 
+          format: "🔴 GPIO5 RESET - REFERENCE WORKING!"
+          level: ERROR
+
+  # Test key GPIO pins with PULL-DOWN (opposite configuration)
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO0 PULLDOWN"
+    id: gpio0_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO0 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLDOWN  
+      inverted: false
+    name: "GPIO1 PULLDOWN"
+    id: gpio1_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO1 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO2 PULLDOWN"
+    id: gpio2_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO2 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO3 PULLDOWN"
+    id: gpio3_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO3 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO4 PULLDOWN"
+    id: gpio4_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO4 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO9 PULLDOWN"
+    id: gpio9_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO9 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO10 PULLDOWN"
+    id: gpio10_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO10 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO11 PULLDOWN"
+    id: gpio11_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO11 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO12 PULLDOWN"
+    id: gpio12_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO12 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO13 PULLDOWN"
+    id: gpio13_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO13 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO14 PULLDOWN"
+    id: gpio14_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO14 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO15
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO15 PULLDOWN"
+    id: gpio15_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO15 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO16
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO16 PULLDOWN"
+    id: gpio16_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO16 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO17 PULLDOWN"
+    id: gpio17_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO17 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+  - platform: gpio
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLDOWN
+      inverted: false
+    name: "GPIO18 PULLDOWN"
+    id: gpio18_pulldown
+    on_press:
+      - logger.log: 
+          format: "🟢 GPIO18 PULLDOWN - FOUND BUTTON!"
+          level: ERROR
+
+sensor:
+  - platform: sht4x
+    i2c_id: bus_a
+    temperature:
+      name: "Temperature"
+      id: temperature
+    humidity:
+      name: "Humidity"  
+      id: humidity
+    update_interval: 15s
+
+# Enhanced I2C scanning interval to detect button controller chips
+interval:
+  - interval: 5s
+    then:
+      - logger.log: 
+          format: "🔍 FINAL TEST - PULLDOWN mode + I2C scan"
+          level: ERROR
+      - logger.log:
+          format: "📊 Press buttons! Temp: %.1f°C"
+          args: [ 'id(temperature).state' ]
+          level: INFO
+      # Enhanced I2C scanning
+      - lambda: |-
+          ESP_LOGI("i2c_scan", "=== I2C Device Scan ===");
+          for (uint8_t address = 1; address < 127; address++) {
+            uint8_t error = Wire.endTransmission();
+            if (error == 0) {
+              ESP_LOGI("i2c_scan", "I2C device found at address 0x%02X", address);
+            }
+          }
+          ESP_LOGI("i2c_scan", "=== Scan complete ===");
