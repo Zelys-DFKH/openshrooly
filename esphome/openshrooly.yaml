@@ -1,0 +1,90 @@
+esphome:
+  name: openshrooly
+  name_add_mac_suffix: true
+  friendly_name: OpenShrooly
+  project:
+    name: grahamsz.openshrooly
+    version: 0.2.3
+#test comment
+  on_boot:
+    priority: -10
+    then:
+      - wait_until:
+          condition:
+            lambda: 'return !isnan(id(humidity).state);'
+          timeout: 30s
+      - script.execute: humidity_control_manager
+      - script.execute: air_exchange_manager
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+logger:
+  level: INFO
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "OpenShrooly"
+    manual_ip:
+      static_ip: 192.168.4.1
+      gateway: 192.168.4.1
+      subnet: 255.255.255.0
+
+  on_connect:
+    then:
+      - component.update: my_display   
+
+captive_portal:
+
+script:
+  # This runs in a continuous loop (or when the timing is changed)
+  - !include scripts/air_exchange_manager.yaml
+
+  # This runs any time the humidity changes (usually once a second)
+  - !include scripts/humidity_control_manager.yaml
+
+  # This runs when the light values change or every 30 seconds
+  - !include scripts/lighting_control_manager.yaml
+
+
+
+interval:
+  - interval: 1s
+    then:
+      - script.execute: lighting_control_manager
+  
+  - interval: 60s
+    then:
+      - lambda: |-
+          auto t = id(sntp_time).now();
+          if (t.is_valid()) {
+          ESP_LOGI("time", 
+            "Current time is: %04d-%02d-%02d %02d:%02d:%02d UTC",
+            t.year, t.month, t.day_of_month,
+            t.hour, t.minute, t.second
+          );
+
+          } else {
+            ESP_LOGW("time", "SNTP time not valid yet");
+          }
+  
+  - interval: 5min
+    then:
+      - component.update: my_display
+
+
+<<: !include components/globals.yaml
+<<: !include components/controls.yaml
+<<: !include components/time.yaml
+<<: !include components/hardware.yaml
+<<: !include components/webserver.yaml
+
+
