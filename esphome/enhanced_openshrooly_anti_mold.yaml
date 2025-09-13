@@ -1,0 +1,477 @@
+# Enhanced OpenShrooly ANTI-MOLD Version
+# 95% fan duty cycle with advanced cycling to prevent mold growth
+# Based on enhanced_openshrooly.yaml with improved fan control
+
+esphome:
+  name: enhanced-openshrooly-antimold
+  friendly_name: Enhanced OpenShrooly Anti-Mold
+  project:
+    name: "enhanced.openshrooly.antimold"
+    version: "2.3.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+# Enhanced logging for WiFi diagnostics
+logger:
+  level: INFO
+  logs:
+    wifi: DEBUG
+    wifi.component: DEBUG
+
+api:
+  encryption:
+    key: "your-api-key-here"
+
+ota:
+  - platform: esphome
+    password: "your-ota-password"
+
+# WiFi 6 compatible configuration with dynamic setup
+wifi:
+  # Default networks (can be overridden by on-device config)
+  networks:
+    - ssid: !lambda return id(wifi_ssid_stored).state.c_str();
+      password: !lambda return id(wifi_password_stored).state.c_str();
+      priority: 10.0
+
+    - ssid: "YourWiFi5_Backup"  # Fallback network
+      password: "YourWiFi5Password"
+      priority: 5.0
+
+  # WiFi 6 optimizations
+  enable_rrm: true
+  enable_btm: true
+  power_save_mode: LIGHT
+  channel: 0
+  output_power: 20dB
+
+  # Manual IP configuration (optional)
+  manual_ip:
+    static_ip: 192.168.1.100
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+    dns1: 8.8.8.8
+    dns2: 8.8.4.4
+
+  # Fallback hotspot
+  ap:
+    ssid: "Enhanced-OpenShrooly-AntiMold"
+    password: "shrooly123"
+
+  # Connection settings
+  reboot_timeout: 15min
+
+  # WiFi scan for on-device setup
+  enable_mdns: true
+
+captive_portal:
+
+# Enhanced web server with better WiFi 6 performance
+web_server:
+  port: 80
+  version: 3  # Use latest web server version
+
+# Hardware configuration
+i2c:
+  sda: 8
+  scl: 9
+  scan: true
+
+spi:
+  clk_pin: 18
+  mosi_pin: 23
+  miso_pin: 19
+
+# ANTI-MOLD FAN CYCLING GLOBALS
+globals:
+  # Original settings (kept for compatibility)
+  - id: selected_program_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: selected_setting_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: menu_mode
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: running_program_index
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: program_running
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+  # ENHANCED ANTI-MOLD SETTINGS
+  - id: gt_pin_white
+    type: float
+    restore_value: true
+    initial_value: '70.0'
+  - id: gt_pin_blue
+    type: float
+    restore_value: true
+    initial_value: '80.0'
+  - id: gt_pin_humidity
+    type: float
+    restore_value: true
+    initial_value: '93.0'  # Slightly reduced due to increased air flow
+  - id: gt_pin_fan
+    type: float
+    restore_value: true
+    initial_value: '75.0'  # Higher base fan speed
+  - id: gt_pin_photoperiod
+    type: float
+    restore_value: true
+    initial_value: '12.0'
+  - id: gt_fruit_white
+    type: float
+    restore_value: true
+    initial_value: '100.0'
+  - id: gt_fruit_blue
+    type: float
+    restore_value: true
+    initial_value: '60.0'
+  - id: gt_fruit_humidity
+    type: float
+    restore_value: true
+    initial_value: '89.0'  # Reduced for anti-mold
+  - id: gt_fruit_fan
+    type: float
+    restore_value: true
+    initial_value: '65.0'  # Higher for fruiting too
+
+  # ANTI-MOLD FAN CYCLING VARIABLES
+  - id: fan_cycle_start_time
+    type: unsigned_long
+    restore_value: false
+    initial_value: '0'
+  - id: fan_current_phase
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: anti_mold_mode
+    type: bool
+    restore_value: true
+    initial_value: 'true'  # Enable anti-mold by default
+
+  # WiFi setup globals
+  - id: wifi_scan_complete
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: selected_network_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: char_index
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: wifi_ssid_stored
+    type: std::string
+    restore_value: true
+    initial_value: '"YourWiFiSSID"'
+  - id: wifi_password_stored
+    type: std::string
+    restore_value: true
+    initial_value: '"YourWiFiPassword"'
+  - id: wifi_password_entered
+    type: std::string
+    restore_value: false
+    initial_value: '""'
+  - id: discovered_networks
+    type: std::vector<std::string>
+    restore_value: false
+
+# Hardware outputs
+output:
+  - platform: ledc
+    pin: 25
+    id: fan_output
+    frequency: 25000 Hz
+  - platform: gpio
+    pin: 26
+    id: humidifier_output
+  - platform: ledc
+    pin: 27
+    id: white_led_output
+  - platform: ledc
+    pin: 14
+    id: red_output
+  - platform: ledc
+    pin: 13
+    id: green_output
+  - platform: ledc
+    pin: 12
+    id: blue_output
+
+fan:
+  - platform: speed
+    name: "Anti-Mold Circulation Fan"
+    id: circulation_fan
+    output: fan_output
+
+switch:
+  - platform: output
+    name: "Humidifier"
+    id: humidifier
+    output: humidifier_output
+
+light:
+  - platform: monochromatic
+    name: "White LEDs"
+    id: white_leds
+    output: white_led_output
+  - platform: rgb
+    name: "RGB LEDs"
+    id: rgb_leds
+    red: red_output
+    green: green_output
+    blue: blue_output
+
+# ANTI-MOLD FAN CYCLING TIMER - Runs every 5 seconds to update fan speed
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          if (id(program_running) && id(anti_mold_mode)) {
+            unsigned long current_time = millis();
+
+            // Initialize cycle start time if needed
+            if (id(fan_cycle_start_time) == 0) {
+              id(fan_cycle_start_time) = current_time;
+              id(fan_current_phase) = 0;
+            }
+
+            // Calculate elapsed time in current cycle (10 minutes = 600,000 ms)
+            unsigned long cycle_elapsed = current_time - id(fan_cycle_start_time);
+            const unsigned long cycle_duration = 600000; // 10 minutes
+
+            // Reset cycle if needed
+            if (cycle_elapsed >= cycle_duration) {
+              id(fan_cycle_start_time) = current_time;
+              cycle_elapsed = 0;
+              id(fan_current_phase) = 0;
+            }
+
+            // ANTI-MOLD PHASE TIMING (95% duty cycle)
+            // Phase durations in milliseconds (total = 600,000 ms)
+            unsigned long phase_durations[] = {60000, 60000, 60000, 60000, 60000, 60000, 60000, 60000, 90000, 30000};
+            float phase_speeds[] = {0.50, 0.60, 0.70, 0.80, 0.85, 0.80, 0.70, 0.60, 0.75, 0.0}; // Last phase is brief rest
+
+            // Find current phase
+            unsigned long phase_start = 0;
+            for (int i = 0; i < 10; i++) {
+              if (cycle_elapsed < phase_start + phase_durations[i]) {
+                id(fan_current_phase) = i;
+                float target_speed = phase_speeds[i];
+
+                if (target_speed > 0) {
+                  auto call = id(circulation_fan).turn_on();
+                  call.set_speed(target_speed);
+                  call.perform();
+                  ESP_LOGI("anti-mold", "Phase %d: Fan at %.0f%% (cycle time: %lu ms)",
+                           i, target_speed * 100, cycle_elapsed);
+                } else {
+                  id(circulation_fan).turn_off().perform();
+                  ESP_LOGI("anti-mold", "Phase %d: Fan OFF - brief rest (cycle time: %lu ms)",
+                           i, cycle_elapsed);
+                }
+                break;
+              }
+              phase_start += phase_durations[i];
+            }
+          }
+
+# Buttons (same as original)
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 33
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Up Button"
+    id: up_button
+    on_press:
+      - script.execute: button_up
+
+  - platform: gpio
+    pin:
+      number: 34
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Down Button"
+    id: down_button
+    on_press:
+      - script.execute: button_down
+
+  - platform: gpio
+    pin:
+      number: 35
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Select Button"
+    id: select_button
+    on_press:
+      - script.execute: button_select
+
+  - platform: gpio
+    pin:
+      number: 32
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Menu Button"
+    id: menu_button
+    on_press:
+      - script.execute: button_menu
+    on_click:
+      min_length: 2s
+      max_length: 5s
+      then:
+        - script.execute: wifi_setup_start
+
+# Display (simplified for anti-mold focus)
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 10
+  - file: "gfonts://Roboto"
+    id: font_medium
+    size: 14
+  - file: "gfonts://Roboto"
+    id: font_large
+    size: 18
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: 5
+    dc_pin: 17
+    busy_pin: 4
+    reset_pin: 16
+    model: 2.13in-ttgo-b73
+    rotation: 270°
+    id: epd_display
+    update_interval: never
+    lambda: |-
+      if (id(menu_mode) == 0) {
+        // Main menu
+        it.print(0, 0, id(font_large), "ANTI-MOLD GT v2.3");
+        it.print(0, 20, id(font_medium), "1. GT Pinning (95% Fan)");
+        it.print(0, 35, id(font_medium), "2. GT Fruiting (85% Fan)");
+        it.printf(0, 55, id(font_small), "Anti-Mold: %s", id(anti_mold_mode) ? "ON" : "OFF");
+        it.printf(0, 70, id(font_small), "Phase: %d", id(fan_current_phase));
+
+        if (id(program_running)) {
+          it.print(0, 85, id(font_medium), ">>> RUNNING <<<");
+          if (id(running_program_index) == 0) {
+            it.printf(0, 100, id(font_small), "GT Pin: W:%.0f%% B:%.0f%% RH:%.0f%%",
+                      id(gt_pin_white), id(gt_pin_blue), id(gt_pin_humidity));
+          }
+        }
+        it.print(0, 115, id(font_small), "▲▼ Nav  ● Start  ■ Menu");
+      }
+
+# Scripts for button handling and program control
+script:
+  - id: button_up
+    then:
+      - lambda: |-
+          if (id(menu_mode) == 0 && !id(program_running)) {
+            id(selected_program_index) = (id(selected_program_index) - 1 + 2) % 2;
+          }
+      - component.update: epd_display
+
+  - id: button_down
+    then:
+      - lambda: |-
+          if (id(menu_mode) == 0 && !id(program_running)) {
+            id(selected_program_index) = (id(selected_program_index) + 1) % 2;
+          }
+      - component.update: epd_display
+
+  - id: button_select
+    then:
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0 && !id(program_running);
+          then:
+            - script.execute: start_program
+      - if:
+          condition:
+            lambda: return id(menu_mode) == 0 && id(program_running);
+          then:
+            - script.execute: stop_program
+
+  - id: button_menu
+    then:
+      - lambda: |-
+          // Toggle anti-mold mode
+          id(anti_mold_mode) = !id(anti_mold_mode);
+      - component.update: epd_display
+
+  - id: start_program
+    then:
+      - lambda: |-
+          id(program_running) = true;
+          id(running_program_index) = id(selected_program_index);
+          id(menu_mode) = 3;
+          id(fan_cycle_start_time) = 0; // Reset fan cycling
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 0;
+          then:
+            # GT Pinning with anti-mold fan cycling
+            - light.turn_on:
+                id: white_leds
+                brightness: !lambda return id(gt_pin_white) / 100.0;
+            - light.turn_on:
+                id: rgb_leds
+                brightness: !lambda return id(gt_pin_blue) / 100.0;
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            # Fan will be controlled by interval timer for cycling
+      - if:
+          condition:
+            lambda: return id(selected_program_index) == 1;
+          then:
+            # GT Fruiting with anti-mold fan cycling
+            - light.turn_on:
+                id: white_leds
+                brightness: !lambda return id(gt_fruit_white) / 100.0;
+            - light.turn_on:
+                id: rgb_leds
+                brightness: !lambda return id(gt_fruit_blue) / 100.0;
+                red: 0%
+                green: 0%
+                blue: 100%
+            - switch.turn_on: humidifier
+            # Fan will be controlled by interval timer for cycling
+      - component.update: epd_display
+
+  - id: stop_program
+    then:
+      - lambda: |-
+          id(program_running) = false;
+          id(running_program_index) = -1;
+          id(menu_mode) = 0;
+          id(fan_cycle_start_time) = 0;
+      - light.turn_off: white_leds
+      - light.turn_off: rgb_leds
+      - switch.turn_off: humidifier
+      - fan.turn_off: circulation_fan
+      - component.update: epd_display
+
+  # WiFi setup scripts (placeholder - simplified)
+  - id: wifi_setup_start
+    then:
+      - logger.log: "WiFi setup not implemented in anti-mold version"

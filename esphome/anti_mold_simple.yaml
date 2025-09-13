@@ -1,0 +1,111 @@
+# Simple Anti-Mold Configuration for OpenShrooly
+# Modifies existing settings to increase fan operation
+
+esphome:
+  name: openshrooly-antimold
+  friendly_name: OpenShrooly Anti-Mold
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: "supersecret"
+
+ota:
+  - platform: esphome
+    password: "openshroolyota"
+
+wifi:
+  ssid: "YourWiFiSSID"
+  password: "YourWiFiPassword"
+
+  ap:
+    ssid: "OpenShrooly-AntiMold"
+    password: "shrooly123"
+
+web_server:
+  port: 80
+
+# Hardware outputs
+output:
+  - platform: ledc
+    pin: 25
+    id: fan_output
+    frequency: 25000 Hz
+
+fan:
+  - platform: speed
+    name: "Anti-Mold Fan"
+    id: circulation_fan
+    output: fan_output
+
+# Anti-mold fan automation - runs almost continuously
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          // Get current time in seconds since boot
+          unsigned long current_time_sec = millis() / 1000;
+
+          // 10-minute cycle (600 seconds)
+          unsigned long cycle_time = current_time_sec % 600;
+
+          // Anti-mold pattern: 95% duty cycle
+          // 570 seconds ON (varying speeds), 30 seconds OFF
+          if (cycle_time < 570) {
+            // Calculate speed based on position in 570-second active period
+            float speed = 0.55 + 0.30 * sin(cycle_time * 3.14159 / 190); // Varies between 55-85%
+            speed = max(0.55f, min(0.85f, speed)); // Clamp to range
+
+            auto call = id(circulation_fan).turn_on();
+            call.set_speed(speed);
+            call.perform();
+
+            ESP_LOGI("antimold", "Fan ON at %.0f%% (cycle: %lu/600s)", speed * 100, cycle_time);
+          } else {
+            // Brief 30-second rest period
+            id(circulation_fan).turn_off().perform();
+            ESP_LOGI("antimold", "Fan OFF - rest period (cycle: %lu/600s)", cycle_time);
+          }
+
+# Manual fan control switches for testing
+switch:
+  - platform: template
+    name: "Manual Fan Control"
+    id: manual_fan_control
+    turn_on_action:
+      - fan.turn_on:
+          id: circulation_fan
+          speed: 75%
+    turn_off_action:
+      - fan.turn_off: circulation_fan
+
+  - platform: template
+    name: "Anti-Mold Mode"
+    id: anti_mold_mode
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON  # Default to ON
+
+# Sensor to show fan status
+sensor:
+  - platform: template
+    name: "Fan Duty Cycle"
+    id: fan_duty_cycle
+    unit_of_measurement: "%"
+    update_interval: 30s
+    lambda: |-
+      unsigned long current_time_sec = millis() / 1000;
+      unsigned long cycle_time = current_time_sec % 600;
+
+      if (cycle_time < 570) {
+        return 95.0; // Active period
+      } else {
+        return 0.0;  // Rest period
+      }
